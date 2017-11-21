@@ -18,6 +18,7 @@ String debugText = "";
 
 void setup(){ //Called ONCE at the beggining of runtime
   fullScreen(FX2D); //That cinema experience
+  //randomSeed(10); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6), round(height*0.9)); //Make a square
 
@@ -27,11 +28,10 @@ void setup(){ //Called ONCE at the beggining of runtime
   fighter1 = new Fighter(LEFT); //Make the fighters, yes I used built in constants for the arrow keys
   fighter2 = new Fighter(RIGHT);
 
-  randomSeed(1); //FOR DEBUGGING
-
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26);
   textFont(mono);
+  noLoop();
 }
 
 void draw(){ //Caleed 60 (ish) times per second
@@ -65,4 +65,16 @@ void renderStage(){ //Draws the arena
   arena.strokeWeight(4); //THICC lines
 
   arena.line(arena.width*0.5, 0, arena.width*0.5, arena.height); //Line down the middle
+
+  // arena.fill(50, 50, 210);
+  // if(fighter1.bullet != null){
+  //   println("SHOOT");
+  //   arena.ellipse(fighter1.bullet.bulletPos.x, fighter1.bullet.bulletPos.y, 10, 10);
+  // }if(fighter2.bullet != null){
+  //   arena.ellipse(fighter2.bullet.bulletPos.x, fighter2.bullet.bulletPos.y, 10, 10);
+  // }
+}
+
+void mouseReleased(){
+  draw();
 }

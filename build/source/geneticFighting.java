@@ -36,6 +36,7 @@ String debugText = "";
 
 public void setup(){ //Called ONCE at the beggining of runtime
    //That cinema experience
+  //randomSeed(10); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6f), round(height*0.9f)); //Make a square
 
@@ -45,11 +46,10 @@ public void setup(){ //Called ONCE at the beggining of runtime
   fighter1 = new Fighter(LEFT); //Make the fighters, yes I used built in constants for the arrow keys
   fighter2 = new Fighter(RIGHT);
 
-  randomSeed(1); //FOR DEBUGGING
-
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26);
   textFont(mono);
+  noLoop();
 }
 
 public void draw(){ //Caleed 60 (ish) times per second
@@ -83,6 +83,18 @@ public void renderStage(){ //Draws the arena
   arena.strokeWeight(4); //THICC lines
 
   arena.line(arena.width*0.5f, 0, arena.width*0.5f, arena.height); //Line down the middle
+
+  // arena.fill(50, 50, 210);
+  // if(fighter1.bullet != null){
+  //   println("SHOOT");
+  //   arena.ellipse(fighter1.bullet.bulletPos.x, fighter1.bullet.bulletPos.y, 10, 10);
+  // }if(fighter2.bullet != null){
+  //   arena.ellipse(fighter2.bullet.bulletPos.x, fighter2.bullet.bulletPos.y, 10, 10);
+  // }
+}
+
+public void mouseReleased(){
+  draw();
 }
 class Brain {
 
@@ -237,16 +249,6 @@ class Fighter{ //The FIGHTER class!
       shoot();
       println("SHOT");
     }
-    if(bullet != null){
-      if(!bullet.exists){
-        bullet = null;
-      }else{
-        println("Bullet: "+bullet.run());
-        // arena.fill(10);
-        // arena.ellipse(bullet.bulletPos.x, bullet.bulletPos.y, 10, 10);
-        bullet.drawBullet();
-      }
-    }
 
     //Make sure you don't go off the edge.
     pos.x = constrain(pos.x, leftEdge, leftEdge+arena.width/2);
@@ -272,6 +274,17 @@ class Fighter{ //The FIGHTER class!
       l.rotate(radians(dir));
     }
     arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y); //Draw the pointer
+
+    if(bullet != null){ //Draw the bullet
+      if(!bullet.exists){
+        bullet = null;
+      }else{
+        println("Bullet: "+bullet.run());
+        // arena.fill(10);
+        // arena.ellipse(bullet.bulletPos.x, bullet.bulletPos.y, 10, 10);
+        bullet.drawBullet();
+      }
+    }
   }
 
   public float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
@@ -279,14 +292,14 @@ class Fighter{ //The FIGHTER class!
   }
 
   class Bullet{
-    PVector bulletPos, vel;
+    PVector bulletPos, bulletVel;
     boolean exists = true;
     Fighter myFighter;
 
-    Bullet(PVector pos, PVector vel, Fighter f){
+    Bullet(PVector pos, PVector v, Fighter f){
       this.bulletPos = pos;
-      this.vel = vel.normalize();
-      this.vel.mult(6);
+      this.bulletVel = v.normalize();
+      this.bulletVel.mult(6);
 
       myFighter = f;
     }
@@ -304,7 +317,7 @@ class Fighter{ //The FIGHTER class!
         myFighter.shotsLanded += 1;
         return -1;
       }
-      bulletPos.add(vel);
+      bulletPos.add(bulletVel);
       println(bulletPos);
       return 1;
     }

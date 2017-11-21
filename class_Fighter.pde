@@ -58,17 +58,6 @@ class Fighter{ //The FIGHTER class!
     pos.add(vel); //Let's GOOOOO
     if(shoot > 0.3 && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
-      println("SHOT");
-    }
-    if(bullet != null){
-      if(!bullet.exists){
-        bullet = null;
-      }else{
-        println("Bullet: "+bullet.run());
-        // arena.fill(10);
-        // arena.ellipse(bullet.bulletPos.x, bullet.bulletPos.y, 10, 10);
-        bullet.drawBullet();
-      }
     }
 
     //Make sure you don't go off the edge.
@@ -95,6 +84,17 @@ class Fighter{ //The FIGHTER class!
       l.rotate(radians(dir));
     }
     arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y); //Draw the pointer
+
+    if(bullet != null){ //Draw the bullet
+      if(!bullet.exists){
+        bullet = null;
+      }else{
+        bullet.run();
+        // arena.fill(10);
+        // arena.ellipse(bullet.bulletPos.x, bullet.bulletPos.y, 10, 10);
+        bullet.drawBullet();
+      }
+    }
   }
 
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
@@ -102,14 +102,15 @@ class Fighter{ //The FIGHTER class!
   }
 
   class Bullet{
-    PVector bulletPos, vel;
+    PVector bulletPos, bulletVel;
     boolean exists = true;
     Fighter myFighter;
 
-    Bullet(PVector pos, PVector vel, Fighter f){
+    Bullet(PVector pos, PVector v, Fighter f){
+      println(v);
       this.bulletPos = pos;
-      this.vel = vel.normalize();
-      this.vel.mult(6);
+      this.bulletVel = v.normalize();
+      this.bulletVel.mult(6);
 
       myFighter = f;
     }
@@ -127,13 +128,12 @@ class Fighter{ //The FIGHTER class!
         myFighter.shotsLanded += 1;
         return -1;
       }
-      bulletPos.add(vel);
+      bulletPos.add(bulletVel);
       println(bulletPos);
       return 1;
     }
 
     void drawBullet(){
-      println(bulletPos+" :: "+frameCount);
       arena.fill(50, 50, 210);
       arena.ellipse(bulletPos.x, bulletPos.y, 10, 10);
     }
