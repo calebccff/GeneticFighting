@@ -28,45 +28,72 @@ public class geneticFighting extends PApplet {
 
 
 
+final int GAME_SIZE = 50, GAME_TIME = 600;
+final float BREED_PERCENT = 0.4f;
+
+int numGens = 0;
+
 PGraphics arena; //Makes drawing things easier, so debugging has space.
 
-Fighter fighter1, fighter2; //The two fighters, not very modular but ah well, don't worry it'll become an array at some points
-
-String debugText = "";
+Fighter[] fighters = new Fighter[GAME_SIZE*2];
+Game[] games       = new Game[GAME_SIZE];
 
 public void setup(){ //Called ONCE at the beggining of runtime
-   //That cinema experience
-  //randomSeed(10); //FOR DEBUGGING
+  //fullScreen(FX2D); //That cinema experience
+  frameRate(300);
+  //randomSeed(8); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6f), round(height*0.9f)); //Make a square
 
   imageMode(CENTER); //Changing some settings
   rectMode(CENTER);
 
-  fighter1 = new Fighter(LEFT); //Make the fighters, yes I used built in constants for the arrow keys
-  fighter2 = new Fighter(RIGHT);
+  for(int i = 0; i < GAME_SIZE; i++){
+    fighters[i*2] = new Fighter(LEFT);
+    fighters[i*2+1] = new Fighter(RIGHT);
+
+    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
 
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26);
   textFont(mono);
-  noLoop();
+  textSize(height*0.03f);
+}
+
+public void breed(){
+  Arrays.sort(fighters);
+  for(Fighter f : fighters){
+    println(f.fitness());
+  }
+  Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
+  for(int i = 0; i < toBreed.length; i++){
+    toBreed[i] = fighters[i];
+  }
+  for(int i = 0; i < GAME_SIZE; i++){
+    fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT);
+    fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
+
+    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
+  numGens++;
 }
 
 public void draw(){ //Caleed 60 (ish) times per second
   background(50); //That space grey
-  debugText =  "Fighter 1:\n";
-  fighter1.run(fighter2.pos); //Make the fighters run
-  debugText += "\nFighter 2:\n";
-  fighter2.run(fighter1.pos);
+  for(Game g : games){
+    g.run();
+  }
   arena.beginDraw(); //Start drawing the ARENA
   renderStage(); //Draw the line, and the fancy curvy edges
-  fighter1.display(); //Draw the fighters
-  fighter2.display();
+  games[currentGame].display();
   arena.endDraw(); //Stop drawing
   drawStage();
 
-  //Debug text
-  text(debugText, height*0.05f, height*0.05f);
+  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+nf(frameRate, 3, 1)+"\n"+numGens, height*0.05f, height*0.05f);
+  if(frameCount%GAME_TIME == 0){
+    breed();
+  }
 }
 
 public void drawStage(){
@@ -83,18 +110,6 @@ public void renderStage(){ //Draws the arena
   arena.strokeWeight(4); //THICC lines
 
   arena.line(arena.width*0.5f, 0, arena.width*0.5f, arena.height); //Line down the middle
-
-  // arena.fill(50, 50, 210);
-  // if(fighter1.bullet != null){
-  //   println("SHOOT");
-  //   arena.ellipse(fighter1.bullet.bulletPos.x, fighter1.bullet.bulletPos.y, 10, 10);
-  // }if(fighter2.bullet != null){
-  //   arena.ellipse(fighter2.bullet.bulletPos.x, fighter2.bullet.bulletPos.y, 10, 10);
-  // }
-}
-
-public void mouseReleased(){
-  draw();
 }
 class Brain {
 
@@ -148,10 +163,15 @@ class Brain {
     float[] output = new float[nodes[nodes.length-1].length]; //Gets the outputs from the last layer
     for (int i = 0; i < output.length; i++) {
       output[i] = nodes[nodes.length-1][i].value;
+      output[i] = sig(output[i]);
     }
 
     return output; //Return them
 
+  }
+
+  public float sig(float x) { //The sigmoid function, look it up.
+    return 1/(1+pow((float)Math.E, -x)); //looks like and S shape, Eulers number is AWESOME!
   }
 
   class Node { //Node class, could use a dictionary or somethin similar but this creates more logical code (and more efficient!)
@@ -166,8 +186,7 @@ class Brain {
     }
 
     Node(Node parent){ //Takes a random parent Node (see above)
-      Node t = this;
-      t = parent;
+      synapse = new float[parent.synapse.length];
       for(int i = 0; i < synapse.length; i++){ //For each synapse
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
           synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
@@ -180,83 +199,100 @@ class Brain {
       for (int i = 0; i < nodes.length; i++) { //Set my value to be the sum of each previous node * the synaps
         value += nodes[i].value*synapse[i];
       }
-      value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
+      //value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
     }
-    public float sig(float x) { //The sigmoid function, look it up.
-      return 1/(1+pow((float)Math.E, -x)); //looks like and S shape, Eulers number is AWESOME!
-    }
+
   }
 }
-class Fighter{ //The FIGHTER class!
-  PVector pos, vel = new PVector(0, 0); //Has a position and velocity
+class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
+  PVector pos, oldPos, vel = new PVector(0, 0); //Has a position and velocity
   int myfill; //Some dodgy stuff to make the two fighters different colours
   int leftEdge; //More dodgy stuff, used to offset each fighter so they don't share the same space.
 
   Brain b; //Hey they aren't zombies, although they may act like that.
   Bullet bullet;
 
-  float dir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazzy to learn how they work.
+  Fighter otherfighter;
 
-  int shotsLanded = 0, shotsAvoided = 0, distanceTravelled = 0; //Basic shoddy fitness function implementation, these don't do anything
+  float netOut[] = new float[3];
+  float[] inputs = new float[2]; //Setup the inputs
+  float dir = random(360); //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazzy to learn how they work.
+
+  int shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0; //Basic shoddy fitness function implementation, these don't do anything
                                                                 //YET
   Fighter(int half){ //Default constructor, need to know which half the screen I'm in
-    b = new Brain(2, 4, 3);  //Creates a crazy random hectic brain
+    b = new Brain(2, 5, 3);  //Creates a crazy random hectic brain
+    side(half);
+  }
 
+  public void side(int half){
     if(half == LEFT){ //If I'm on the left half
       myfill = color(210, 50, 50); //Let there be RED
       leftEdge = 0; //No offset
-      pos = new PVector(arena.width*0.25f, arena.height*0.5f); //Set my position
+      pos = new PVector(random(leftEdge, leftEdge+arena.width/2), random(arena.height)); //Set my position
     }else{
       myfill = color(50, 210, 50); //I'm GREEN and proud
       leftEdge = arena.width/2; //Right side
-      pos = new PVector(arena.width*0.75f, arena.height*0.5f); //RIGHT SIDE
-      dir = 180;
+      pos = new PVector(random(leftEdge, leftEdge+arena.width/2), random(arena.height)); //RIGHT SIDE
     }
+    oldPos = pos;
   }
 
-  Fighter(Fighter f1, Fighter f2){ //This means I have parents
+  Fighter(Fighter f1, Fighter f2, int half){ //This means I have parents
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
+
+    side(half);
   }
 
-  public void run(PVector otherPos){ //Lets FIGHT, gotta know where my opponent is!
-    float[] inputs = new float[2]; //Setup the inputs
-    inputs[0] = map(radians(PVector.angleBetween(pos, otherPos)), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
-    inputs[1] = 1; //Involes bullets, not implemented.
-    debugText += "in : "+Arrays.toString(inputs)+"\n";
+  public void run(){ //Lets FIGHT, gotta know where my opponent is!
+    inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
+    inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5f; //Involes bullets, not implemented.
+    //float angBetween = degrees(PVector.angleBetween(vel, otherfighter.pos));
+    //inputs[0] = (abs(angBetween)<10?1:0);
+    //inputs[1] = (otherfighter.bullet!=null?(degrees(abs(otherfighter.bullet.bulletVel.heading())-vel.heading())<30?1:0):0);
     float[] actions = b.propForward(inputs); //Get the output of my BRAIN
-    debugText += "out: "+Arrays.toString(actions)+"\n";
-    float forward = actions[0]; //Should i move forward?
+    netOut = actions;
+    float forward = actions[0]; //Should I move forward?
     float dirVel = actions[1];
     float shoot = actions[2];
 
-    float speed = forward<0.2f?0:map(forward, 0.5f, 1, 2, 8);
+    float speed = forward<0.2f?0:map(forward, 0.2f, 1, 2, 8);
 
     dirVel = map(dirVel, 0, 1, -40, 40); //Adjust my direction
-    if(dirVel < 2 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning
+    if(dirVel < 2 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning (not that that stops them...)
       dirVel = 0;
     }else{
       dir += dirVel;
     }
     dir = (dir+360)%360;
-    debugText += "Dir: "+dir+" : "+dirVel+"\n";
-    debugText += "Pos: "+pos+"\n";
-    debugText += "Vel: "+vel+"\n\n";
-    debugText += "shL: "+shotsLanded+"\n";
     vel = new PVector(speed, 0);
     vel.rotate(radians(dir));
+    if(frameCount%10==0){
+      oldPos = pos.copy();
+    }
     pos.add(vel); //Let's GOOOOO
     if(shoot > 0.3f && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
-      println("SHOT");
+    }
+    if(bullet != null && bullet.exists){
+      bullet.run();
     }
 
+    shotsLanded = otherfighter.hitsTaken;
+    distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1);
+    distanceTravelled = constrain(distanceTravelled, 0, 100);
+
     //Make sure you don't go off the edge.
-    pos.x = constrain(pos.x, leftEdge, leftEdge+arena.width/2);
+    pos.x = constrain(pos.x, leftEdge+40, leftEdge+arena.width/2-40);
     pos.y = constrain(pos.y, 0, arena.height);
   }
 
+  public int compareTo(Fighter other){
+    return round(other.fitness()-fitness());
+  }
+
   public void shoot(){
-    bullet = new Bullet(pos, vel, this);
+    bullet = new Bullet(pos, dir, otherfighter);
   }
 
   public void display(){ //Draw those curves!
@@ -279,57 +315,101 @@ class Fighter{ //The FIGHTER class!
       if(!bullet.exists){
         bullet = null;
       }else{
-        println("Bullet: "+bullet.run());
-        // arena.fill(10);
-        // arena.ellipse(bullet.bulletPos.x, bullet.bulletPos.y, 10, 10);
         bullet.drawBullet();
       }
     }
   }
 
   public float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    return shotsLanded*2+shotsAvoided+distanceTravelled;
+    return -hitsTaken+shotsLanded+shotsAvoided+distanceTravelled;
   }
 
   class Bullet{
     PVector bulletPos, bulletVel;
     boolean exists = true;
-    Fighter myFighter;
+    Fighter target;
 
-    Bullet(PVector pos, PVector v, Fighter f){
-      this.bulletPos = pos;
-      this.bulletVel = v.normalize();
+    Bullet(PVector pos, float ang, Fighter f){
+      this.bulletPos = pos.copy();
+      this.bulletVel = PVector.fromAngle(radians(ang));
       this.bulletVel.mult(6);
 
-      myFighter = f;
+      target = f;
     }
 
     public int run(){
-      if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < 0 || bulletPos.y > arena.height){
+      if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
         exists = false;
         return -1;
-      }else if(dist(bulletPos.x, bulletPos.y, fighter1.pos.x, fighter1.pos.y) < 20 && fighter1 != myFighter){
+      }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 20){
         exists = false;
-        myFighter.shotsLanded += 1;
-        return -1;
-      }else if(dist(bulletPos.x, bulletPos.y, fighter2.pos.x, fighter2.pos.y) < 20 && fighter2 != myFighter){
-        exists = false;
-        myFighter.shotsLanded += 1;
+        target.hitsTaken += 1;
         return -1;
       }
       bulletPos.add(bulletVel);
-      println(bulletPos);
       return 1;
     }
 
     public void drawBullet(){
-      println(bulletPos+" :: "+frameCount);
       arena.fill(50, 50, 210);
       arena.ellipse(bulletPos.x, bulletPos.y, 10, 10);
     }
   }
 }
-  public void settings() {  fullScreen(FX2D); }
+class Game{
+
+  Fighter[] localfighters = new Fighter[2];
+
+  String debuggingInfo = "";
+
+  Game(Fighter f1, Fighter f2){
+    localfighters[0] = f1;
+    localfighters[1] = f2;
+    localfighters[0].otherfighter = f2;
+    localfighters[1].otherfighter = f1;
+  }
+
+  public String debug(Fighter f){
+    String debugText = "";
+    debugText += "Fighter "+(f.leftEdge==0?"1":"2")+"\n";
+    debugText += "Pos   : "+nfs(f.pos.x, 3, 1)+", "+nfs(f.pos.y, 3, 1)+"\n";
+    debugText += "Vel   : "+nfs(f.vel.x, 3, 1)+", "+nfs(f.vel.y, 3, 1)+"\n";
+    debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
+    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
+    debugText += "NetIn : "+Arrays.toString(f.inputs)+"\n";
+    debugText += "NetOut: "+Arrays.toString(f.netOut)+"\n";
+
+    debugText += "\n";
+
+    return debugText;
+  }
+
+  public void run(){
+    localfighters[0].run();
+    localfighters[1].run();
+  }
+
+  public void display(){
+    debuggingInfo = "";
+    for(Fighter f : localfighters){
+      f.display();
+      debuggingInfo += debug(f);
+    }
+    text(debuggingInfo, height*0.05f, height*0.2f);
+  }
+}
+int currentGame = 0;
+
+public void keyPressed(){
+  if(keyCode == UP){
+    currentGame++;
+  }else if(keyCode == DOWN){
+    currentGame--;
+  }
+  println(keyCode);
+  currentGame = (currentGame<0?GAME_SIZE-1:(currentGame>49?0:currentGame));
+}
+  public void settings() {  size(1280, 720, FX2D); }
   static public void main(String[] passedArgs) {
     String[] appletArgs = new String[] { "geneticFighting" };
     if (passedArgs != null) {

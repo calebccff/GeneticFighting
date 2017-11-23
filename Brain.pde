@@ -50,10 +50,15 @@ class Brain {
     float[] output = new float[nodes[nodes.length-1].length]; //Gets the outputs from the last layer
     for (int i = 0; i < output.length; i++) {
       output[i] = nodes[nodes.length-1][i].value;
+      output[i] = sig(output[i]);
     }
 
     return output; //Return them
 
+  }
+
+  float sig(float x) { //The sigmoid function, look it up.
+    return 1/(1+pow((float)Math.E, -x)); //looks like and S shape, Eulers number is AWESOME!
   }
 
   class Node { //Node class, could use a dictionary or somethin similar but this creates more logical code (and more efficient!)
@@ -68,8 +73,7 @@ class Brain {
     }
 
     Node(Node parent){ //Takes a random parent Node (see above)
-      Node t = this;
-      t = parent;
+      synapse = new float[parent.synapse.length];
       for(int i = 0; i < synapse.length; i++){ //For each synapse
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
           synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
@@ -82,10 +86,8 @@ class Brain {
       for (int i = 0; i < nodes.length; i++) { //Set my value to be the sum of each previous node * the synaps
         value += nodes[i].value*synapse[i];
       }
-      value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
+      //value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
     }
-    float sig(float x) { //The sigmoid function, look it up.
-      return 1/(1+pow((float)Math.E, -x)); //looks like and S shape, Eulers number is AWESOME!
-    }
+
   }
 }

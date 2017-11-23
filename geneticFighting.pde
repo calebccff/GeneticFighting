@@ -10,45 +10,72 @@
 
 import java.util.Arrays;
 
+final int GAME_SIZE = 50, GAME_TIME = 600;
+final float BREED_PERCENT = 0.4;
+
+int numGens = 0;
+
 PGraphics arena; //Makes drawing things easier, so debugging has space.
 
-Fighter fighter1, fighter2; //The two fighters, not very modular but ah well, don't worry it'll become an array at some points
-
-String debugText = "";
+Fighter[] fighters = new Fighter[GAME_SIZE*2];
+Game[] games       = new Game[GAME_SIZE];
 
 void setup(){ //Called ONCE at the beggining of runtime
-  fullScreen(FX2D); //That cinema experience
-  //randomSeed(10); //FOR DEBUGGING
+  size(1280, 720, FX2D);//fullScreen(FX2D); //That cinema experience
+  frameRate(300);
+  //randomSeed(8); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6), round(height*0.9)); //Make a square
 
   imageMode(CENTER); //Changing some settings
   rectMode(CENTER);
 
-  fighter1 = new Fighter(LEFT); //Make the fighters, yes I used built in constants for the arrow keys
-  fighter2 = new Fighter(RIGHT);
+  for(int i = 0; i < GAME_SIZE; i++){
+    fighters[i*2] = new Fighter(LEFT);
+    fighters[i*2+1] = new Fighter(RIGHT);
+
+    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
 
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26);
   textFont(mono);
-  noLoop();
+  textSize(height*0.03);
+}
+
+void breed(){
+  Arrays.sort(fighters);
+  for(Fighter f : fighters){
+    println(f.fitness());
+  }
+  Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
+  for(int i = 0; i < toBreed.length; i++){
+    toBreed[i] = fighters[i];
+  }
+  for(int i = 0; i < GAME_SIZE; i++){
+    fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT);
+    fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
+
+    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
+  numGens++;
 }
 
 void draw(){ //Caleed 60 (ish) times per second
   background(50); //That space grey
-  debugText =  "Fighter 1:\n";
-  fighter1.run(fighter2.pos); //Make the fighters run
-  debugText += "\nFighter 2:\n";
-  fighter2.run(fighter1.pos);
+  for(Game g : games){
+    g.run();
+  }
   arena.beginDraw(); //Start drawing the ARENA
   renderStage(); //Draw the line, and the fancy curvy edges
-  fighter1.display(); //Draw the fighters
-  fighter2.display();
+  games[currentGame].display();
   arena.endDraw(); //Stop drawing
   drawStage();
 
-  //Debug text
-  text(debugText, height*0.05, height*0.05);
+  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+nf(frameRate, 3, 1)+"\n"+numGens, height*0.05, height*0.05);
+  if(frameCount%GAME_TIME == 0){
+    breed();
+  }
 }
 
 void drawStage(){
@@ -65,16 +92,4 @@ void renderStage(){ //Draws the arena
   arena.strokeWeight(4); //THICC lines
 
   arena.line(arena.width*0.5, 0, arena.width*0.5, arena.height); //Line down the middle
-
-  // arena.fill(50, 50, 210);
-  // if(fighter1.bullet != null){
-  //   println("SHOOT");
-  //   arena.ellipse(fighter1.bullet.bulletPos.x, fighter1.bullet.bulletPos.y, 10, 10);
-  // }if(fighter2.bullet != null){
-  //   arena.ellipse(fighter2.bullet.bulletPos.x, fighter2.bullet.bulletPos.y, 10, 10);
-  // }
-}
-
-void mouseReleased(){
-  draw();
 }
