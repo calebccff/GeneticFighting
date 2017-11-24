@@ -30,6 +30,7 @@ public class geneticFighting extends PApplet {
 
 final int GAME_SIZE = 50, GAME_TIME = 600;
 final float BREED_PERCENT = 0.4f;
+boolean showFittest = true;
 
 int numGens = 0;
 
@@ -41,7 +42,7 @@ Game[] games       = new Game[GAME_SIZE];
 public void setup(){ //Called ONCE at the beggining of runtime
   //fullScreen(FX2D); //That cinema experience
   frameRate(300);
-  //randomSeed(8); //FOR DEBUGGING
+  randomSeed(8); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6f), round(height*0.9f)); //Make a square
 
@@ -63,13 +64,11 @@ public void setup(){ //Called ONCE at the beggining of runtime
 
 public void breed(){
   Arrays.sort(fighters);
-  for(Fighter f : fighters){
-    println(f.fitness());
-  }
   Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
   for(int i = 0; i < toBreed.length; i++){
     toBreed[i] = fighters[i];
   }
+  println(toBreed[0].fitness());
   for(int i = 0; i < GAME_SIZE; i++){
     fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT);
     fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
@@ -86,13 +85,28 @@ public void draw(){ //Caleed 60 (ish) times per second
   }
   arena.beginDraw(); //Start drawing the ARENA
   renderStage(); //Draw the line, and the fancy curvy edges
-  games[currentGame].display();
+  arena.stroke(0); //Black for the line, to show direction
+  arena.strokeWeight(2); //THICC lines
+  for(Game g : games){
+    g.display();
+  }
+  //games[currentGame].display();
   arena.endDraw(); //Stop drawing
   drawStage();
 
   text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+nf(frameRate, 3, 1)+"\n"+numGens, height*0.05f, height*0.05f);
   if(frameCount%GAME_TIME == 0){
     breed();
+  }
+  if(showFittest){
+    float bestFitness = 0;
+    for(int i = 0; i < GAME_SIZE; i++){
+      float fitness = abs(games[i].localfighters[0].fitness())+abs(games[i].localfighters[1].fitness());
+      if(fitness > bestFitness){
+        bestFitness = fitness;
+        currentGame = i;
+      }
+    }
   }
 }
 
@@ -117,7 +131,7 @@ class Brain {
 
   final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
   final float SYNAPSE_MAX = 2f;
-  final float MUTATION_RATE = 0.02f;
+  final float MUTATION_RATE = 0.05f;
 
   Brain(int lenInput, int lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodes[0] = new Node[lenInput]; //Initialises the second dimension of the array
@@ -141,9 +155,16 @@ class Brain {
     nodes[1] = new Node[b1.nodes[1].length];
     nodes[2] = new Node[b1.nodes[2].length];
 
+    Brain chosen;
+    if(random(1)<0.5f){
+      chosen = b1;
+    }else{
+      chosen = b2;
+    }
+
     for(int i = 0; i < nodes.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
       for(int j = 0; j < nodes[i].length; j++){
-        nodes[i][j] = new Node(random(1)<0.5f?b1.nodes[i][j]:b2.nodes[i][j]); //Picks a random parent and uses their genes.
+        nodes[i][j] = new Node(chosen.nodes[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
   }
@@ -189,7 +210,7 @@ class Brain {
       synapse = new float[parent.synapse.length];
       for(int i = 0; i < synapse.length; i++){ //For each synapse
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
-          synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
+          synapse[i] += random(SYNAPSE_MIN/8, SYNAPSE_MAX/8); //At the moment picks new random value, MIGHTFIX
         }
       }
     }
@@ -240,7 +261,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
   Fighter(Fighter f1, Fighter f2, int half){ //This means I have parents
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
-
     side(half);
   }
 
@@ -258,8 +278,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     float speed = forward<0.2f?0:map(forward, 0.2f, 1, 2, 8);
 
-    dirVel = map(dirVel, 0, 1, -40, 40); //Adjust my direction
-    if(dirVel < 2 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning (not that that stops them...)
+    dirVel = map(dirVel, 0, 1, -20, 20); //Adjust my direction
+    if(dirVel < -3 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning (not that that stops them...)
       dirVel = 0;
     }else{
       dir += dirVel;
@@ -279,7 +299,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
 
     shotsLanded = otherfighter.hitsTaken;
-    distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1);
+    distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1)/10;
     distanceTravelled = constrain(distanceTravelled, 0, 100);
 
     //Make sure you don't go off the edge.
@@ -297,16 +317,14 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
   public void display(){ //Draw those curves!
     arena.fill(myfill); //RAINBOWS
-    arena.stroke(0); //Black for the line, to show direction
-    arena.strokeWeight(2); //THICC lines
 
-    arena.ellipse(pos.x, pos.y, 40, 40); //CURVY
+    arena.ellipse(pos.x, pos.y, 20, 20); //CURVY
     PVector l = vel; //Some funky stuff for drawing a line from a direction
     if(vel.mag() > 1){ //Normalize it, if we're moving
       l.normalize();
-      l.mult(20);
+      l.mult(10);
     }else{
-      l = new PVector(20, 0); //Create a vector using `dir`
+      l = new PVector(10, 0); //Create a vector using `dir`
       l.rotate(radians(dir));
     }
     arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y); //Draw the pointer
@@ -341,7 +359,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
         exists = false;
         return -1;
-      }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 20){
+      }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 10){
         exists = false;
         target.hitsTaken += 1;
         return -1;
@@ -352,7 +370,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     public void drawBullet(){
       arena.fill(50, 50, 210);
-      arena.ellipse(bulletPos.x, bulletPos.y, 10, 10);
+      arena.ellipse(bulletPos.x, bulletPos.y, 6, 6);
     }
   }
 }
@@ -393,7 +411,7 @@ class Game{
     debuggingInfo = "";
     for(Fighter f : localfighters){
       f.display();
-      debuggingInfo += debug(f);
+      //debuggingInfo += debug(f);
     }
     text(debuggingInfo, height*0.05f, height*0.2f);
   }
@@ -408,6 +426,13 @@ public void keyPressed(){
   }
   println(keyCode);
   currentGame = (currentGame<0?GAME_SIZE-1:(currentGame>49?0:currentGame));
+}
+
+public void keyReleased(){
+  if(keyCode == 70){ //'f' key
+    showFittest = !showFittest;
+  }
+  println(showFittest);
 }
   public void settings() {  size(1280, 720, FX2D); }
   static public void main(String[] passedArgs) {

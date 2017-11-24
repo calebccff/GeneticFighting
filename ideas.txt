@@ -1,4 +1,6 @@
 Inputs:
  - Am I facing Enemy? (1: Yes, 0: No)
  - Is a bullet coming towards me? (1: Yes, 0: No)
- 
+
+
+ #Mutate towards other parent.

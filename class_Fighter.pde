@@ -34,7 +34,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
   Fighter(Fighter f1, Fighter f2, int half){ //This means I have parents
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
-
     side(half);
   }
 
@@ -52,8 +51,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     float speed = forward<0.2?0:map(forward, 0.2, 1, 2, 8);
 
-    dirVel = map(dirVel, 0, 1, -40, 40); //Adjust my direction
-    if(dirVel < 2 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning (not that that stops them...)
+    dirVel = map(dirVel, 0, 1, -20, 20); //Adjust my direction
+    if(dirVel < -3 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning (not that that stops them...)
       dirVel = 0;
     }else{
       dir += dirVel;
@@ -73,7 +72,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
 
     shotsLanded = otherfighter.hitsTaken;
-    distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1);
+    distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1)/10;
     distanceTravelled = constrain(distanceTravelled, 0, 100);
 
     //Make sure you don't go off the edge.
@@ -91,16 +90,14 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
   void display(){ //Draw those curves!
     arena.fill(myfill); //RAINBOWS
-    arena.stroke(0); //Black for the line, to show direction
-    arena.strokeWeight(2); //THICC lines
 
-    arena.ellipse(pos.x, pos.y, 40, 40); //CURVY
+    arena.ellipse(pos.x, pos.y, 20, 20); //CURVY
     PVector l = vel; //Some funky stuff for drawing a line from a direction
     if(vel.mag() > 1){ //Normalize it, if we're moving
       l.normalize();
-      l.mult(20);
+      l.mult(10);
     }else{
-      l = new PVector(20, 0); //Create a vector using `dir`
+      l = new PVector(10, 0); //Create a vector using `dir`
       l.rotate(radians(dir));
     }
     arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y); //Draw the pointer
@@ -135,7 +132,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
         exists = false;
         return -1;
-      }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 20){
+      }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 10){
         exists = false;
         target.hitsTaken += 1;
         return -1;
@@ -146,7 +143,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     void drawBullet(){
       arena.fill(50, 50, 210);
-      arena.ellipse(bulletPos.x, bulletPos.y, 10, 10);
+      arena.ellipse(bulletPos.x, bulletPos.y, 6, 6);
     }
   }
 }

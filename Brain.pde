@@ -4,7 +4,7 @@ class Brain {
 
   final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
   final float SYNAPSE_MAX = 2f;
-  final float MUTATION_RATE = 0.02f;
+  final float MUTATION_RATE = 0.05f;
 
   Brain(int lenInput, int lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodes[0] = new Node[lenInput]; //Initialises the second dimension of the array
@@ -28,9 +28,16 @@ class Brain {
     nodes[1] = new Node[b1.nodes[1].length];
     nodes[2] = new Node[b1.nodes[2].length];
 
+    Brain chosen;
+    if(random(1)<0.5){
+      chosen = b1;
+    }else{
+      chosen = b2;
+    }
+
     for(int i = 0; i < nodes.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
       for(int j = 0; j < nodes[i].length; j++){
-        nodes[i][j] = new Node(random(1)<0.5?b1.nodes[i][j]:b2.nodes[i][j]); //Picks a random parent and uses their genes.
+        nodes[i][j] = new Node(chosen.nodes[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
   }
@@ -76,7 +83,7 @@ class Brain {
       synapse = new float[parent.synapse.length];
       for(int i = 0; i < synapse.length; i++){ //For each synapse
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
-          synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
+          synapse[i] += random(SYNAPSE_MIN/8, SYNAPSE_MAX/8); //At the moment picks new random value, MIGHTFIX
         }
       }
     }

@@ -9,3 +9,10 @@ void keyPressed(){
   println(keyCode);
   currentGame = (currentGame<0?GAME_SIZE-1:(currentGame>49?0:currentGame));
 }
+
+void keyReleased(){
+  if(keyCode == 70){ //'f' key
+    showFittest = !showFittest;
+  }
+  println(showFittest);
+}
