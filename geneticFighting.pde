@@ -7,11 +7,18 @@
   + Turn left (lo) or right (hi) (confidence affects speed)
   + Shoot (confidence affects bullet velocity)
 */
+//The Furst
 
 import java.util.Arrays;
 
-final int GAME_SIZE = 50, GAME_TIME = 600;
+final int GAME_SIZE = 50;
+final float GAME_TIME = 600;
 final float BREED_PERCENT = 0.4;
+
+final int NUM_INPUTS = 3;
+final int NUM_HIDDEN = 5;
+final int NUM_OUTPUTS = 4;
+
 boolean showFittest = true;
 
 int numGens = 0;
@@ -50,7 +57,6 @@ void breed(){
   for(int i = 0; i < toBreed.length; i++){
     toBreed[i] = fighters[i];
   }
-  println(toBreed[0].fitness());
   for(int i = 0; i < GAME_SIZE; i++){
     fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT);
     fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
@@ -69,10 +75,10 @@ void draw(){ //Caleed 60 (ish) times per second
   renderStage(); //Draw the line, and the fancy curvy edges
   arena.stroke(0); //Black for the line, to show direction
   arena.strokeWeight(2); //THICC lines
-  for(Game g : games){
-    g.display();
-  }
-  //games[currentGame].display();
+  // for(Game g : games){
+  //   g.display();
+  // }
+  games[currentGame].display();
   arena.endDraw(); //Stop drawing
   drawStage();
 

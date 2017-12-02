@@ -8,14 +8,16 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
   Fighter otherfighter;
 
-  float netOut[] = new float[3];
-  float[] inputs = new float[2]; //Setup the inputs
+  float netOut[] = new float[NUM_OUTPUTS];
+  float[] inputs = new float[NUM_INPUTS]; //Setup the inputs
   float dir = random(360); //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazzy to learn how they work.
+  float fov = 20f; //The Field of View, ie how wide their eyesight is.
+  float speed = 0;
 
   int shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0; //Basic shoddy fitness function implementation, these don't do anything
                                                                 //YET
   Fighter(int half){ //Default constructor, need to know which half the screen I'm in
-    b = new Brain(2, 5, 3);  //Creates a crazy random hectic brain
+    b = new Brain(NUM_INPUTS, NUM_HIDDEN, NUM_OUTPUTS);  //Creates a crazy random hectic brain
     side(half);
   }
 
@@ -38,8 +40,35 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   }
 
   void run(){ //Lets FIGHT, gotta know where my opponent is!
-    inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
-    inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5; //Involes bullets, not implemented.
+    //Current input ideas:
+    // - Size of FOV (mapped from min: 10 to max: 120 to min: 0, max: 1)
+    // - Is player in my FOV (Might make use of analog style values later)
+    // - Is the bullet in my FOV ('' '')
+
+    //Is the player in: Get heading between minFOV and player, as well as maxFOV and player, should be > 0 for min, < 0 for max
+    //Make a new vector from vel and fov.
+    float minFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())-radians(fov/2))), otherfighter.pos));
+    float maxFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())+radians(fov/2))), otherfighter.pos));
+
+    println(maxFOVHeading);
+
+    inputs[0] = minFOVHeading>0?(maxFOVHeading<0?1:0):0;
+
+    //Now the same for the bullets
+    if(otherfighter.bullet != null){
+      minFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())-radians(fov/2))), otherfighter.bullet.bulletPos));
+      maxFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())+radians(fov/2))), otherfighter.bullet.bulletPos));
+
+      inputs[1] = minFOVHeading>0?(maxFOVHeading<0?1:0):0;
+    }else{
+      inputs[1] = 0.0;
+    }
+
+    //And finally, the size of my fov
+    inputs[2] = map(fov, 10, 120, 0, 1);
+
+    //inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
+    //inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5; //Involes bullets, not implemented.
     //float angBetween = degrees(PVector.angleBetween(vel, otherfighter.pos));
     //inputs[0] = (abs(angBetween)<10?1:0);
     //inputs[1] = (otherfighter.bullet!=null?(degrees(abs(otherfighter.bullet.bulletVel.heading())-vel.heading())<30?1:0):0);
@@ -49,7 +78,11 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     float dirVel = actions[1];
     float shoot = actions[2];
 
-    float speed = forward<0.2?0:map(forward, 0.2, 1, 2, 8);
+    //Update my fov
+    fov += map(actions[3], 0, 1, -25, 25);
+    fov = constrain(fov, 10, 120);
+
+    speed = forward<0.2?0:map(forward, 0.2, 1, 2, 8);
 
     dirVel = map(dirVel, 0, 1, -20, 20); //Adjust my direction
     if(dirVel < -3 && dirVel > -2){ //Basically a deadzone, don't want to be always spinning (not that that stops them...)
@@ -92,6 +125,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     arena.fill(myfill); //RAINBOWS
 
     arena.ellipse(pos.x, pos.y, 20, 20); //CURVY
+
+    //Draw the pointer
     PVector l = vel; //Some funky stuff for drawing a line from a direction
     if(vel.mag() > 1){ //Normalize it, if we're moving
       l.normalize();
@@ -100,7 +135,20 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       l = new PVector(10, 0); //Create a vector using `dir`
       l.rotate(radians(dir));
     }
-    arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y); //Draw the pointer
+    arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y);
+    //Draw the FOV
+    for(int i = -1; i <=1; i+=2){
+      PVector fovV = vel;
+      if(vel.mag() > 1){
+        fovV.normalize();
+        fovV.mult(400);
+        fovV.rotate(radians(fov/2*i)); //i is either -1 or 1, clever stuff!
+      }else{
+        fovV = new PVector(400, 0);
+        fovV.rotate(radians(dir)+radians(fov/2*i));
+      }
+      arena.line(pos.x, pos.y, pos.x+fovV.x, pos.y+fovV.y);
+    }
 
     if(bullet != null){ //Draw the bullet
       if(!bullet.exists){

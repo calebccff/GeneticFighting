@@ -35,7 +35,7 @@ class Game{
     debuggingInfo = "";
     for(Fighter f : localfighters){
       f.display();
-      //debuggingInfo += debug(f);
+      debuggingInfo += debug(f);
     }
     text(debuggingInfo, height*0.05, height*0.2);
   }

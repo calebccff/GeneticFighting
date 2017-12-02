@@ -6,7 +6,6 @@ void keyPressed(){
   }else if(keyCode == DOWN){
     currentGame--;
   }
-  println(keyCode);
   currentGame = (currentGame<0?GAME_SIZE-1:(currentGame>49?0:currentGame));
 }
 
@@ -14,5 +13,11 @@ void keyReleased(){
   if(keyCode == 70){ //'f' key
     showFittest = !showFittest;
   }
-  println(showFittest);
+}
+
+void mousePressed(){
+  frameRate(5);
+}
+void mouseReleased(){
+  frameRate(120);
 }
