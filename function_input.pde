@@ -6,7 +6,7 @@ void keyPressed(){
   }else if(keyCode == DOWN){
     currentGame--;
   }
-  currentGame = (currentGame<0?GAME_SIZE-1:(currentGame>49?0:currentGame));
+  currentGame = (currentGame<0?GAME_SIZE-1:(currentGame>GAME_SIZE-1?0:currentGame));
 }
 
 void keyReleased(){
@@ -16,8 +16,8 @@ void keyReleased(){
 }
 
 void mousePressed(){
-  frameRate(5);
+  frameRate(2);
 }
 void mouseReleased(){
-  frameRate(120);
+  frameRate(60);
 }

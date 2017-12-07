@@ -20,6 +20,8 @@ class Game{
     debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
     debugText += "NetIn : "+Arrays.toString(f.inputs)+"\n";
     debugText += "NetOut: "+Arrays.toString(f.netOut)+"\n";
+    debugText += "FOV   : "+f.fov+" : "+(f.fov/2)+"\n";
+    debugText += "Dir   : "+f.dir+" : "+(f.leftEdge==0?(degrees(PVector.angleBetween(f.vel, localfighters[1].pos))):(180-degrees(PVector.angleBetween(localfighters[1].vel, localfighters[0].pos))))+"\n";
 
     debugText += "\n";
 

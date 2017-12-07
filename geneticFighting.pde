@@ -9,50 +9,52 @@
 */
 //The Furst
 
-import java.util.Arrays;
+import java.util.Arrays; //Imports the Arrays class, used to convert array to string to create more readable output
 
-final int GAME_SIZE = 50;
-final float GAME_TIME = 600;
-final float BREED_PERCENT = 0.4;
+final int GAME_SIZE = 500; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
+final float GAME_TIME = 800; //The time (in frames) between each call of the breed function
+final float BREED_PERCENT = 0.5; //How many of the top fighters are used to breed
 
-final int NUM_INPUTS = 3;
+final int NUM_INPUTS = 4; //Constants which define the neural network
 final int NUM_HIDDEN = 5;
-final int NUM_OUTPUTS = 4;
+final int NUM_OUTPUTS = 5;
 
-boolean showFittest = true;
+boolean showFittest = true; //This defines weather or not to show the fittest game or allow user control
 
-int numGens = 0;
+int numGens = 0; //Counts the number of generations that have happened since the program started
 
-PGraphics arena; //Makes drawing things easier, so debugging has space.
+PGraphics arena; //This allows all the games to be drawn to a seperate canvas, avoids having to do lots of complex maths to display debug info
 
-Fighter[] fighters = new Fighter[GAME_SIZE*2];
-Game[] games       = new Game[GAME_SIZE];
+Fighter[] fighters = new Fighter[GAME_SIZE*2]; //A one dimensional array which stores ALL of the fighters
+Game[] games       = new Game[GAME_SIZE]; //A one dimensional array whic stores all the concurrent games
 
 void setup(){ //Called ONCE at the beggining of runtime
-  size(1280, 720, FX2D);//fullScreen(FX2D); //That cinema experience
-  frameRate(300);
-  randomSeed(8); //FOR DEBUGGING
+  size(1280, 720, FX2D);//fullScreen(FX2D); //That cinema experience //Configures the canvas
+  frameRate(60); //Set the framelimit
+  //randomSeed(4); //FOR DEBUGGING
 
-  arena = createGraphics(round(width*0.6), round(height*0.9)); //Make a square
+  arena = createGraphics(round(width*0.6), round(height*0.9)); //Make the arena canvas
 
-  imageMode(CENTER); //Changing some settings
+  imageMode(CENTER); //Define how images and rectangles are drawn to the screen
   rectMode(CENTER);
 
-  for(int i = 0; i < GAME_SIZE; i++){
-    fighters[i*2] = new Fighter(LEFT);
+  for(int i = 0; i < GAME_SIZE; i++){ //Initialises all the games
+    fighters[i*2] = new Fighter(LEFT); //Use some existing methods to specify what side of the screen each fighter is on
     fighters[i*2+1] = new Fighter(RIGHT);
 
-    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+    games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
   }
 
   //Set font
-  PFont mono = createFont("UbuntuMono.ttf", 26);
+  PFont mono = createFont("UbuntuMono.ttf", 26); //Initialise the text, monospaced makes text much more readable
   textFont(mono);
   textSize(height*0.03);
 }
 
-void breed(){
-  Arrays.sort(fighters);
+void breed(){ //This functions breeds a new generation from the current generation
+  try{
+    Arrays.sort(fighters); //Sorts the fighters using the compareTo method
+  }catch(IllegalArgumentException e){}
   Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
   for(int i = 0; i < toBreed.length; i++){
     toBreed[i] = fighters[i];
@@ -89,7 +91,7 @@ void draw(){ //Caleed 60 (ish) times per second
   if(showFittest){
     float bestFitness = 0;
     for(int i = 0; i < GAME_SIZE; i++){
-      float fitness = abs(games[i].localfighters[0].fitness())+abs(games[i].localfighters[1].fitness());
+      float fitness = games[i].localfighters[0].fitness()+games[i].localfighters[1].fitness();
       if(fitness > bestFitness){
         bestFitness = fitness;
         currentGame = i;
