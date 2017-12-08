@@ -13,9 +13,9 @@ import java.util.Arrays; //Imports the Arrays class, used to convert array to st
 
 final int GAME_SIZE = 500; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
 final float GAME_TIME = 800; //The time (in frames) between each call of the breed function
-final float BREED_PERCENT = 0.5; //How many of the top fighters are used to breed
+final float BREED_PERCENT = 0.2; //How many of the top fighters are used to breed
 
-final int NUM_INPUTS = 4; //Constants which define the neural network
+final int NUM_INPUTS = 5; //Constants which define the neural network
 final int NUM_HIDDEN = 5;
 final int NUM_OUTPUTS = 5;
 
@@ -30,7 +30,7 @@ Game[] games       = new Game[GAME_SIZE]; //A one dimensional array whic stores 
 
 void setup(){ //Called ONCE at the beggining of runtime
   size(1280, 720, FX2D);//fullScreen(FX2D); //That cinema experience //Configures the canvas
-  frameRate(60); //Set the framelimit
+  frameRate(600); //Set the framelimit
   //randomSeed(4); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6), round(height*0.9)); //Make the arena canvas
@@ -54,7 +54,7 @@ void setup(){ //Called ONCE at the beggining of runtime
 void breed(){ //This functions breeds a new generation from the current generation
   try{
     Arrays.sort(fighters); //Sorts the fighters using the compareTo method
-  }catch(IllegalArgumentException e){}
+  }catch(IllegalArgumentException e){/*swallow*/}
   Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
   for(int i = 0; i < toBreed.length; i++){
     toBreed[i] = fighters[i];
@@ -64,6 +64,9 @@ void breed(){ //This functions breeds a new generation from the current generati
     fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
+  for(int i = 0; i < toBreed.length; i++){
+    fighters[i].b = toBreed[i].b;
   }
   numGens++;
 }

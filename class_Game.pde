@@ -18,6 +18,7 @@ class Game{
     debugText += "Vel   : "+nfs(f.vel.x, 3, 1)+", "+nfs(f.vel.y, 3, 1)+"\n";
     debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
     debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
+    debugText += "ShtMSD: "+f.shotsMissed+"\n";
     debugText += "NetIn : "+Arrays.toString(f.inputs)+"\n";
     debugText += "NetOut: "+Arrays.toString(f.netOut)+"\n";
     debugText += "FOV   : "+f.fov+" : "+(f.fov/2)+"\n";

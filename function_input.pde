@@ -16,8 +16,8 @@ void keyReleased(){
 }
 
 void mousePressed(){
-  frameRate(2);
+  frameRate(10);
 }
 void mouseReleased(){
-  frameRate(60);
+  frameRate(600);
 }

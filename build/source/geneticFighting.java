@@ -31,9 +31,9 @@ public class geneticFighting extends PApplet {
 
 final int GAME_SIZE = 500; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
 final float GAME_TIME = 800; //The time (in frames) between each call of the breed function
-final float BREED_PERCENT = 0.5f; //How many of the top fighters are used to breed
+final float BREED_PERCENT = 0.2f; //How many of the top fighters are used to breed
 
-final int NUM_INPUTS = 4; //Constants which define the neural network
+final int NUM_INPUTS = 5; //Constants which define the neural network
 final int NUM_HIDDEN = 5;
 final int NUM_OUTPUTS = 5;
 
@@ -48,7 +48,7 @@ Game[] games       = new Game[GAME_SIZE]; //A one dimensional array whic stores 
 
 public void setup(){ //Called ONCE at the beggining of runtime
   //fullScreen(FX2D); //That cinema experience //Configures the canvas
-  frameRate(60); //Set the framelimit
+  frameRate(600); //Set the framelimit
   //randomSeed(4); //FOR DEBUGGING
 
   arena = createGraphics(round(width*0.6f), round(height*0.9f)); //Make the arena canvas
@@ -72,7 +72,7 @@ public void setup(){ //Called ONCE at the beggining of runtime
 public void breed(){ //This functions breeds a new generation from the current generation
   try{
     Arrays.sort(fighters); //Sorts the fighters using the compareTo method
-  }catch(IllegalArgumentException e){}
+  }catch(IllegalArgumentException e){/*swallow*/}
   Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
   for(int i = 0; i < toBreed.length; i++){
     toBreed[i] = fighters[i];
@@ -82,6 +82,9 @@ public void breed(){ //This functions breeds a new generation from the current g
     fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
+  for(int i = 0; i < toBreed.length; i++){
+    fighters[i].b = toBreed[i].b;
   }
   numGens++;
 }
@@ -137,9 +140,9 @@ class Brain {
 
   Node[][] nodes = new Node[3][]; //Staggered 2d array of Node objects that make up the BRAIN
 
-  final float SYNAPSE_MIN = 0f; //Some constants to fine tune the NN, could have a drastic effect on evolution
+  final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
   final float SYNAPSE_MAX = 2f;
-  final float MUTATION_RATE = 0.5f;
+  final float MUTATION_RATE = 0.05f;
 
   Brain(int lenInput, int lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodes[0] = new Node[lenInput]; //Initialises the second dimension of the array
@@ -219,7 +222,6 @@ class Brain {
       for(int i = 0; i < synapse.length; i++){ //For each synapse
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
           synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
-          synapse[i] = constrain(synapse[i], SYNAPSE_MIN, SYNAPSE_MAX);
         }else{
           synapse[i] = parent.synapse[i];
         }
@@ -252,8 +254,10 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   float fov = 20f; //The Field of View, ie how wide their eyesight is.
   float speed = 0;
 
-  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, turnSpeed; //Basic shoddy fitness function implementation, these don't do anything
-                                                                //YET
+  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, turnSpeed = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
+  float shotsMissed = 0;
+  boolean bulletInRange = false;
+                                                        //YET
   Fighter(int half){ //Default constructor, need to know which half the screen I'm in
     b = new Brain(NUM_INPUTS, NUM_HIDDEN, NUM_OUTPUTS);  //Creates a crazy random hectic brain
     side(half);
@@ -274,6 +278,11 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     oldPos = pos;
   }
 
+  Fighter(Brain _b, int half){
+    b = _b;
+    side(half);
+  }
+
   Fighter(Fighter f1, Fighter f2, int half){ //This means I have parents
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
     side(half);
@@ -289,31 +298,36 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Make a new vector from vel and fov.
     float withinFOV;
     PVector tempVel = vel.copy();
-    if(abs(vel.mag()) < 2){
+    if(vel.mag() < 2){
       vel = new PVector(10, 0);
-      tempVel.rotate(radians(dir));
-    }if(leftEdge==0){
-      withinFOV = abs(degrees(PVector.angleBetween(vel, otherfighter.pos)));
+      vel.rotate(radians(dir));
+    }if(PApplet.parseInt(leftEdge)==0){
+      PVector diff = PVector.sub(otherfighter.pos, pos);
+      withinFOV = degrees(PVector.angleBetween(vel, diff));
     }else{
-      withinFOV = 180-abs(degrees(PVector.angleBetween(vel, otherfighter.pos)));
+      PVector diff = PVector.sub(pos, otherfighter.pos);
+      withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
     }
 
     //float minFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())-radians(fov/2))), otherfighter.pos));
     //float maxFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())+radians(fov/2))), otherfighter.pos));
 
     inputs[0] = withinFOV<fov/2?1:0;
+    framesTracked += inputs[0];
+    framesTracked *= inputs[0];
 
     //Now the same for the bullets
     if(otherfighter.bullet != null){
-      withinFOV = 180-abs(degrees(PVector.angleBetween(vel, otherfighter.bullet.bulletPos)));
-      inputs[1] = withinFOV<fov/2?1:0;
+      PVector diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
+      withinFOV = degrees(PVector.angleBetween(vel, diff));
     }else{
       inputs[1] = 0.0f;
     }
 
     //And finally, the size of my fov
-    inputs[2] = map(fov, 10, 120, 0, 1);
+    inputs[2] = map(fov, 10, 120, 1, 0);
     inputs[3] = map(constrain(fitness(), -150, 150), -150, 150, 0, 1);
+    inputs[4] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
     vel = tempVel.copy();
     //inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
     //inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5; //Involes bullets, not implemented.
@@ -329,7 +343,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     //Update my fov
     fov += map(actions[3], 0, 1, -5, 5);
-    fov = constrain(fov, 10, 120);
+    fov = constrain(fov, 2, 120);
 
     speed = forward<0.2f?0:map(forward, 0.2f, 1, 2, 8); //Forward speed
     float dirVel = 0.5f;
@@ -350,6 +364,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     pos.add(vel); //Let's GOOOOO
     if(shoot > 0.3f && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
+      shotWhileFacing += inputs[0];
     }
     if(bullet != null && bullet.exists){
       bullet.run();
@@ -361,6 +376,17 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     shotsLanded = otherfighter.hitsTaken;
     distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1)/10;
     distanceTravelled = constrain(distanceTravelled, 0, 100);
+
+    //Increment shotsAvoided
+    if(otherfighter.bullet != null){
+      if(dist(pos.x, pos.y, otherfighter.bullet.bulletPos.x, otherfighter.bullet.bulletPos.y) < 60 && !bulletInRange){
+        shotsAvoided++;
+        bulletInRange = true;
+      }else if(dist(pos.x, pos.y, otherfighter.bullet.bulletPos.x, otherfighter.bullet.bulletPos.y) > 59){
+        bulletInRange = false;
+      }
+    }
+
     turnSpeed = abs(oldDir-dir);
   }
 
@@ -390,14 +416,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Draw the FOV
     for(int i = -1; i <=1; i+=2){
       PVector fovV = vel;
-      if(vel.mag() > 1){
-        fovV.normalize();
-        fovV.mult(400);
-        fovV.rotate(radians(fov/2)*i); //i is either -1 or 1, clever stuff!
-      }else{
-        fovV = new PVector(400, 0);
-        fovV.rotate(radians(dir+fov/2)*i);
-      }
+      fovV = new PVector(400, 0);
+      fovV.rotate(radians(dir+fov/2*i));
       arena.line(pos.x, pos.y, pos.x+fovV.x, pos.y+fovV.y);
       arena.fill(50, 50, 255);
     }
@@ -411,12 +431,16 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
   }
 
-  public float fitness(int fromOther){
-    return -hitsTaken*2+shotsLanded*10+shotsAvoided+distanceTravelled*0.2f+turnSpeed*-0.03f;
-  }
-
   public float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    return -hitsTaken*2+shotsLanded*10+shotsAvoided+distanceTravelled*0.2f+turnSpeed*-0.03f-otherfighter.fitness(1);
+    float normalFOV = map(fov, 10, 120, 0, 1);
+    return -hitsTaken*2
+    +shotsLanded*3
+    +shotsAvoided*1
+    +distanceTravelled*0.1f
+    +turnSpeed*-0.2f
+    +shotsMissed*4
+    +constrain(framesTracked*map(normalFOV, 0, 1, 2, -0.5f), -50, 50)
+    +shotWhileFacing*(1-normalFOV);
   }
 
   class Bullet{
@@ -426,7 +450,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     Bullet(PVector pos, float ang, Fighter f){
       this.bulletPos = pos.copy();
-      this.bulletVel = PVector.fromAngle(radians(ang)+radians(random(-f.fov/2, f.fov/2)));
+      this.bulletVel = PVector.fromAngle(radians(ang)+radians(random(-fov/2, fov/2)));
       this.bulletVel.mult(6);
 
       target = f;
@@ -435,10 +459,11 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     public int run(){
       if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
         exists = false;
+        shotsMissed += 1;
         return -1;
       }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 18){
         exists = false;
-        target.hitsTaken += 1;
+        target.hitsTaken++;
         return -1;
       }
       bulletPos.add(bulletVel);
@@ -471,6 +496,7 @@ class Game{
     debugText += "Vel   : "+nfs(f.vel.x, 3, 1)+", "+nfs(f.vel.y, 3, 1)+"\n";
     debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
     debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
+    debugText += "ShtMSD: "+f.shotsMissed+"\n";
     debugText += "NetIn : "+Arrays.toString(f.inputs)+"\n";
     debugText += "NetOut: "+Arrays.toString(f.netOut)+"\n";
     debugText += "FOV   : "+f.fov+" : "+(f.fov/2)+"\n";
@@ -513,10 +539,10 @@ public void keyReleased(){
 }
 
 public void mousePressed(){
-  frameRate(2);
+  frameRate(10);
 }
 public void mouseReleased(){
-  frameRate(60);
+  frameRate(600);
 }
   public void settings() {  size(1280, 720, FX2D); }
   static public void main(String[] passedArgs) {

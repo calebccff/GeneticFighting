@@ -2,9 +2,9 @@ class Brain {
 
   Node[][] nodes = new Node[3][]; //Staggered 2d array of Node objects that make up the BRAIN
 
-  final float SYNAPSE_MIN = 0f; //Some constants to fine tune the NN, could have a drastic effect on evolution
+  final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
   final float SYNAPSE_MAX = 2f;
-  final float MUTATION_RATE = 0.5f;
+  final float MUTATION_RATE = 0.05f;
 
   Brain(int lenInput, int lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodes[0] = new Node[lenInput]; //Initialises the second dimension of the array
@@ -84,7 +84,6 @@ class Brain {
       for(int i = 0; i < synapse.length; i++){ //For each synapse
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
           synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
-          synapse[i] = constrain(synapse[i], SYNAPSE_MIN, SYNAPSE_MAX);
         }else{
           synapse[i] = parent.synapse[i];
         }
