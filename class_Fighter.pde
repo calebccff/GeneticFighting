@@ -17,8 +17,11 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, turnSpeed = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
   float shotsMissed = 0;
   boolean bulletInRange = false;
-                                                        //YET
-  Fighter(int half){ //Default constructor, need to know which half the screen I'm in
+
+  int myNoise = 0;
+
+  Fighter(int half, int n){ //Default constructor, need to know which half the screen I'm in
+  myNoise = n*1000;
     b = new Brain(NUM_INPUTS, NUM_HIDDEN, NUM_OUTPUTS);  //Creates a crazy random hectic brain
     side(half);
   }
@@ -38,21 +41,27 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     oldPos = pos;
   }
 
-  Fighter(Brain _b, int half){
+  Fighter(Brain _b, int half, int n){
+    myNoise = n*1000;
     b = _b;
     side(half);
   }
 
-  Fighter(Fighter f1, Fighter f2, int half){ //This means I have parents
+  Fighter(Fighter f1, Fighter f2, int half, int n){ //This means I have parents
+    myNoise = n*1000;
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
     side(half);
   }
 
-  void run(){ //Lets FIGHT, gotta know where my opponent is!
+  public int compareTo(Fighter other){
+    return round(other.fitness()-fitness());
+  }
+
+  void run(){ //Runs the NN and manages the fighter
     //Current input ideas:
-    // - Size of FOV (mapped from min: 10 to max: 120 to min: 0, max: 1)
+    // - Size of FOV (mapped from min: 5 to max: 120 to min: 0, max: 1)
     // - Is player in my FOV (Might make use of analog style values later)
-    // - Is the bullet in my FOV ('' '')
+    // - Is the enemies bullet in my FOV
 
     //Is the player in: Get heading between minFOV and player, as well as maxFOV and player, should be > 0 for min, < 0 for max
     //Make a new vector from vel and fov.
@@ -77,17 +86,24 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     framesTracked *= inputs[0];
 
     //Now the same for the bullets
-    if(otherfighter.bullet != null){
-      PVector diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
-      withinFOV = degrees(PVector.angleBetween(vel, diff));
-    }else{
+    try{
+      if(int(leftEdge)==0){
+        PVector diff = PVector.sub(otherfighter.bullet.bulletPos, pos);
+        withinFOV = degrees(PVector.angleBetween(vel, diff));
+      }else{
+        PVector diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
+        withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
+      }
+    }catch(NullPointerException e){
       inputs[1] = 0.0;
     }
 
+    inputs[1] = withinFOV<fov/2?1:0;
+
     //And finally, the size of my fov
     inputs[2] = map(fov, 10, 120, 1, 0);
-    inputs[3] = map(constrain(fitness(), -150, 150), -150, 150, 0, 1);
-    inputs[4] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
+    inputs[3] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
+    inputs[4] = map(noise((frameCount+myNoise)*0.006), 0.15, 0.85, 0, 1);
     vel = tempVel.copy();
     //inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
     //inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5; //Involes bullets, not implemented.
@@ -102,18 +118,18 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     float shoot = actions[3];
 
     //Update my fov
-    fov += map(actions[3], 0, 1, -5, 5);
-    fov = constrain(fov, 2, 120);
+    fov += map(actions[4], 0, 1, -5, 5);
+    fov = constrain(fov, 5, 120);
 
-    speed = forward<0.2?0:map(forward, 0.2, 1, 2, 8); //Forward speed
-    float dirVel = 0.5;
+    speed = forward<0.2?0:map(forward, 0.2, 1, 0.1, 8); //Forward speed
+    float dirVel = 0;
     if(dirVelLeft > dirVelRight+0.03){
-      dirVel = dirVelLeft;
+      dirVel = -dirVelLeft;
     }else if(dirVelRight > dirVelLeft+0.03){
       dirVel = dirVelRight;
     }
 
-    dirVel = map(dirVel, 0, 1, -10, 10);
+    dirVel = map(dirVel, -1, 1, -10, 10);
     dir += dirVel;
     dir = (dir+360)%360;
     vel = new PVector(speed, 0);
@@ -150,10 +166,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     turnSpeed = abs(oldDir-dir);
   }
 
-  public int compareTo(Fighter other){
-    return round(other.fitness()-fitness());
-  }
-
   void shoot(){
     bullet = new Bullet(pos, dir, otherfighter);
   }
@@ -176,7 +188,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Draw the FOV
     for(int i = -1; i <=1; i+=2){
       PVector fovV = vel;
-      fovV = new PVector(400, 0);
+      fovV = new PVector(250, 0);
       fovV.rotate(radians(dir+fov/2*i));
       arena.line(pos.x, pos.y, pos.x+fovV.x, pos.y+fovV.y);
       arena.fill(50, 50, 255);
@@ -192,15 +204,15 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   }
 
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    float normalFOV = map(fov, 10, 120, 0, 1);
+    float normalFOV = map(fov, 5, 120, 0, 1);
     return -hitsTaken*2
-    +shotsLanded*3
-    +shotsAvoided*1
-    +distanceTravelled*0.1
-    +turnSpeed*-0.2
-    +shotsMissed*4
-    +constrain(framesTracked*map(normalFOV, 0, 1, 2, -0.5), -50, 50)
-    +shotWhileFacing*(1-normalFOV);
+    +shotsLanded*8
+    +shotsAvoided*2
+    +distanceTravelled*1
+    -turnSpeed*2
+    -shotsMissed*2
+    +constrain(framesTracked, -50, 150)
+    +shotWhileFacing*20;
   }
 
   class Bullet{
@@ -210,8 +222,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     Bullet(PVector pos, float ang, Fighter f){
       this.bulletPos = pos.copy();
-      this.bulletVel = PVector.fromAngle(radians(ang)+radians(random(-fov/2, fov/2)));
-      this.bulletVel.mult(6);
+      this.bulletVel = PVector.fromAngle(radians(ang+random(-fov/2, fov/2)));
+      this.bulletVel.mult(10);
 
       target = f;
     }

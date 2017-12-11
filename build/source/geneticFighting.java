@@ -16,7 +16,7 @@ import java.io.IOException;
 
 public class geneticFighting extends PApplet {
 
-/* NOTES
+/* OLD  NOTES
  - Inputs:
   + Enemy to left (lo) or right (hi)
   + Enemy bullet to left (lo) or right (hi)
@@ -25,19 +25,30 @@ public class geneticFighting extends PApplet {
   + Turn left (lo) or right (hi) (confidence affects speed)
   + Shoot (confidence affects bullet velocity)
 */
-//The Furst
+
+/*Current functionality
+ - inputs
+  + Can I see the enemy?
+  + Can I see the enemy's bullet?
+  + What's my fov
+  + Distance between enemy and me
+  + Gaussian noise - encourage random actions.
+*/
 
  //Imports the Arrays class, used to convert array to string to create more readable output
 
 final int GAME_SIZE = 500; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
-final float GAME_TIME = 800; //The time (in frames) between each call of the breed function
+final int GAME_TIME = 800; //The time (in frames) between each call of the breed function
 final float BREED_PERCENT = 0.2f; //How many of the top fighters are used to breed
 
 final int NUM_INPUTS = 5; //Constants which define the neural network
-final int NUM_HIDDEN = 5;
+final int[] NUM_HIDDEN = {7, 7};
 final int NUM_OUTPUTS = 5;
+float MUTATION_RATE = 0.2f;
+final float MUTATION_PERCENT = 0.05f;
 
 boolean showFittest = true; //This defines weather or not to show the fittest game or allow user control
+int timeShown = 0; //The number of frames you've been watching one game
 
 int numGens = 0; //Counts the number of generations that have happened since the program started
 
@@ -57,8 +68,8 @@ public void setup(){ //Called ONCE at the beggining of runtime
   rectMode(CENTER);
 
   for(int i = 0; i < GAME_SIZE; i++){ //Initialises all the games
-    fighters[i*2] = new Fighter(LEFT); //Use some existing methods to specify what side of the screen each fighter is on
-    fighters[i*2+1] = new Fighter(RIGHT);
+    fighters[i*2] = new Fighter(LEFT, i*2); //Use some existing methods to specify what side of the screen each fighter is on
+    fighters[i*2+1] = new Fighter(RIGHT, i*2+1);
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
   }
@@ -66,27 +77,34 @@ public void setup(){ //Called ONCE at the beggining of runtime
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26); //Initialise the text, monospaced makes text much more readable
   textFont(mono);
-  textSize(height*0.03f);
+  textSize(height*0.027f);
 }
 
 public void breed(){ //This functions breeds a new generation from the current generation
   try{
     Arrays.sort(fighters); //Sorts the fighters using the compareTo method
-  }catch(IllegalArgumentException e){/*swallow*/}
+  }catch(IllegalArgumentException e){
+    println("Couldn't sort array...\n"+e);
+  }
   Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
   for(int i = 0; i < toBreed.length; i++){
     toBreed[i] = fighters[i];
   }
   for(int i = 0; i < GAME_SIZE; i++){
-    fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT);
-    fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT);
+    fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT, i*2);
+    fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT, i*2+1);
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
   }
   for(int i = 0; i < toBreed.length; i++){
+    if(random(1) < 0.3f){
+      fighters[i] = new Fighter((fighters[i].leftEdge==0?LEFT:RIGHT), i);
+    }
     fighters[i].b = toBreed[i].b;
   }
   numGens++;
+  MUTATION_RATE *=0.96f;
+  MUTATION_RATE = constrain(MUTATION_RATE, 0.005f, 1);
 }
 
 public void draw(){ //Caleed 60 (ish) times per second
@@ -105,20 +123,23 @@ public void draw(){ //Caleed 60 (ish) times per second
   arena.endDraw(); //Stop drawing
   drawStage();
 
-  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+nf(frameRate, 3, 1)+"\n"+numGens, height*0.05f, height*0.05f);
+  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1)+"\n"+"Gen: "+numGens+" - TS: "+showFittest+" / "+timeShown+"\n"+"MUT: "+nf(MUTATION_RATE, 1, 3), height*0.02f, height*0.04f);
   if(frameCount%GAME_TIME == 0){
     breed();
   }
-  if(showFittest){
+  if(showFittest && timeShown > 60){
     float bestFitness = 0;
     for(int i = 0; i < GAME_SIZE; i++){
       float fitness = games[i].localfighters[0].fitness()+games[i].localfighters[1].fitness();
       if(fitness > bestFitness){
         bestFitness = fitness;
         currentGame = i;
+        timeShown = 0;
       }
     }
   }
+
+  timeShown++;
 }
 
 public void drawStage(){
@@ -138,16 +159,17 @@ public void renderStage(){ //Draws the arena
 }
 class Brain {
 
-  Node[][] nodes = new Node[3][]; //Staggered 2d array of Node objects that make up the BRAIN
+  Node[][] nodes; //Staggered 2d array of Node objects that make up the BRAIN
 
   final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
   final float SYNAPSE_MAX = 2f;
-  final float MUTATION_RATE = 0.05f;
 
-  Brain(int lenInput, int lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
+  Brain(int lenInput, int[] lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodes[0] = new Node[lenInput]; //Initialises the second dimension of the array
-    nodes[1] = new Node[lenHidden];
-    nodes[2] = new Node[lenOutput];
+    for(int i = 0; i < lenHidden.length; i++){
+      nodes[i] = new Node[lenHidden[i]];
+    }
+    nodes[nodes.length-1] = new Node[lenOutput];
 
     for (int i = 0; i < nodes.length; i++) { //Nested FOR loop, creates each node
       for (int j = 0; j < nodes[i].length; j++) {
@@ -162,9 +184,9 @@ class Brain {
   }
 
   Brain(Brain b1, Brain b2){ //This is used for evolution, basically creates a new BRAIN from two parents.
-    nodes[0] = new Node[b1.nodes[0].length]; //Set the size of the staggered array, kinda crusty code MIGHTFIX
-    nodes[1] = new Node[b1.nodes[1].length];
-    nodes[2] = new Node[b1.nodes[2].length];
+    for(int i = 0; i < nodes.length; i++){
+      nodes[i] = new Node[b1.nodes[i].length];
+    }
 
     Brain chosen;
     if(random(1)<0.5f){
@@ -223,7 +245,7 @@ class Brain {
         if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
           synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
         }else{
-          synapse[i] = parent.synapse[i];
+          synapse[i] = parent.synapse[i]*random(1-MUTATION_PERCENT, 1+MUTATION_PERCENT);
         }
       }
     }
@@ -257,8 +279,11 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, turnSpeed = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
   float shotsMissed = 0;
   boolean bulletInRange = false;
-                                                        //YET
-  Fighter(int half){ //Default constructor, need to know which half the screen I'm in
+
+  int myNoise = 0;
+
+  Fighter(int half, int n){ //Default constructor, need to know which half the screen I'm in
+  myNoise = n*1000;
     b = new Brain(NUM_INPUTS, NUM_HIDDEN, NUM_OUTPUTS);  //Creates a crazy random hectic brain
     side(half);
   }
@@ -278,21 +303,27 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     oldPos = pos;
   }
 
-  Fighter(Brain _b, int half){
+  Fighter(Brain _b, int half, int n){
+    myNoise = n*1000;
     b = _b;
     side(half);
   }
 
-  Fighter(Fighter f1, Fighter f2, int half){ //This means I have parents
+  Fighter(Fighter f1, Fighter f2, int half, int n){ //This means I have parents
+    myNoise = n*1000;
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
     side(half);
   }
 
-  public void run(){ //Lets FIGHT, gotta know where my opponent is!
+  public int compareTo(Fighter other){
+    return round(other.fitness()-fitness());
+  }
+
+  public void run(){ //Runs the NN and manages the fighter
     //Current input ideas:
-    // - Size of FOV (mapped from min: 10 to max: 120 to min: 0, max: 1)
+    // - Size of FOV (mapped from min: 5 to max: 120 to min: 0, max: 1)
     // - Is player in my FOV (Might make use of analog style values later)
-    // - Is the bullet in my FOV ('' '')
+    // - Is the enemies bullet in my FOV
 
     //Is the player in: Get heading between minFOV and player, as well as maxFOV and player, should be > 0 for min, < 0 for max
     //Make a new vector from vel and fov.
@@ -317,17 +348,24 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     framesTracked *= inputs[0];
 
     //Now the same for the bullets
-    if(otherfighter.bullet != null){
-      PVector diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
-      withinFOV = degrees(PVector.angleBetween(vel, diff));
-    }else{
+    try{
+      if(PApplet.parseInt(leftEdge)==0){
+        PVector diff = PVector.sub(otherfighter.bullet.bulletPos, pos);
+        withinFOV = degrees(PVector.angleBetween(vel, diff));
+      }else{
+        PVector diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
+        withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
+      }
+    }catch(NullPointerException e){
       inputs[1] = 0.0f;
     }
 
+    inputs[1] = withinFOV<fov/2?1:0;
+
     //And finally, the size of my fov
     inputs[2] = map(fov, 10, 120, 1, 0);
-    inputs[3] = map(constrain(fitness(), -150, 150), -150, 150, 0, 1);
-    inputs[4] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
+    inputs[3] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
+    inputs[4] = map(noise((frameCount+myNoise)*0.006f), 0.15f, 0.85f, 0, 1);
     vel = tempVel.copy();
     //inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
     //inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5; //Involes bullets, not implemented.
@@ -342,18 +380,18 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     float shoot = actions[3];
 
     //Update my fov
-    fov += map(actions[3], 0, 1, -5, 5);
-    fov = constrain(fov, 2, 120);
+    fov += map(actions[4], 0, 1, -5, 5);
+    fov = constrain(fov, 5, 120);
 
-    speed = forward<0.2f?0:map(forward, 0.2f, 1, 2, 8); //Forward speed
-    float dirVel = 0.5f;
+    speed = forward<0.2f?0:map(forward, 0.2f, 1, 0.1f, 8); //Forward speed
+    float dirVel = 0;
     if(dirVelLeft > dirVelRight+0.03f){
-      dirVel = dirVelLeft;
+      dirVel = -dirVelLeft;
     }else if(dirVelRight > dirVelLeft+0.03f){
       dirVel = dirVelRight;
     }
 
-    dirVel = map(dirVel, 0, 1, -10, 10);
+    dirVel = map(dirVel, -1, 1, -10, 10);
     dir += dirVel;
     dir = (dir+360)%360;
     vel = new PVector(speed, 0);
@@ -390,10 +428,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     turnSpeed = abs(oldDir-dir);
   }
 
-  public int compareTo(Fighter other){
-    return round(other.fitness()-fitness());
-  }
-
   public void shoot(){
     bullet = new Bullet(pos, dir, otherfighter);
   }
@@ -416,7 +450,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Draw the FOV
     for(int i = -1; i <=1; i+=2){
       PVector fovV = vel;
-      fovV = new PVector(400, 0);
+      fovV = new PVector(250, 0);
       fovV.rotate(radians(dir+fov/2*i));
       arena.line(pos.x, pos.y, pos.x+fovV.x, pos.y+fovV.y);
       arena.fill(50, 50, 255);
@@ -432,15 +466,15 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   }
 
   public float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    float normalFOV = map(fov, 10, 120, 0, 1);
+    float normalFOV = map(fov, 5, 120, 0, 1);
     return -hitsTaken*2
-    +shotsLanded*3
-    +shotsAvoided*1
-    +distanceTravelled*0.1f
-    +turnSpeed*-0.2f
-    +shotsMissed*4
-    +constrain(framesTracked*map(normalFOV, 0, 1, 2, -0.5f), -50, 50)
-    +shotWhileFacing*(1-normalFOV);
+    +shotsLanded*8
+    +shotsAvoided*2
+    +distanceTravelled*1
+    -turnSpeed*2
+    -shotsMissed*2
+    +constrain(framesTracked, -50, 150)
+    +shotWhileFacing*20;
   }
 
   class Bullet{
@@ -450,8 +484,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     Bullet(PVector pos, float ang, Fighter f){
       this.bulletPos = pos.copy();
-      this.bulletVel = PVector.fromAngle(radians(ang)+radians(random(-fov/2, fov/2)));
-      this.bulletVel.mult(6);
+      this.bulletVel = PVector.fromAngle(radians(ang+random(-fov/2, fov/2)));
+      this.bulletVel.mult(10);
 
       target = f;
     }
@@ -492,15 +526,21 @@ class Game{
   public String debug(Fighter f){
     String debugText = "";
     debugText += "Fighter "+(f.leftEdge==0?"1":"2")+"\n";
-    debugText += "Pos   : "+nfs(f.pos.x, 3, 1)+", "+nfs(f.pos.y, 3, 1)+"\n";
-    debugText += "Vel   : "+nfs(f.vel.x, 3, 1)+", "+nfs(f.vel.y, 3, 1)+"\n";
     debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
     debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
-    debugText += "ShtMSD: "+f.shotsMissed+"\n";
-    debugText += "NetIn : "+Arrays.toString(f.inputs)+"\n";
-    debugText += "NetOut: "+Arrays.toString(f.netOut)+"\n";
-    debugText += "FOV   : "+f.fov+" : "+(f.fov/2)+"\n";
-    debugText += "Dir   : "+f.dir+" : "+(f.leftEdge==0?(degrees(PVector.angleBetween(f.vel, localfighters[1].pos))):(180-degrees(PVector.angleBetween(localfighters[1].vel, localfighters[0].pos))))+"\n";
+    debugText += "Input : \n";
+    debugText += "SO  , SOB , FOV , DIST, NOISE\n";
+    for(int i = 0; i < f.inputs.length; i++){
+      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
+    }
+    debugText += "\n\n";
+    debugText += "Output: \n";
+    debugText += "W   , A   , D   , SHO , FOV\n";
+    for(int i = 0; i < f.netOut.length; i++){
+      debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
+    }
+    debugText += "\n";
+    debugText += "FOV   : "+f.fov+"\n";
 
     debugText += "\n";
 
@@ -518,7 +558,7 @@ class Game{
       f.display();
       debuggingInfo += debug(f);
     }
-    text(debuggingInfo, height*0.05f, height*0.2f);
+    text(debuggingInfo, height*0.02f, height*0.2f);
   }
 }
 int currentGame = 0;

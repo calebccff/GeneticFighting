@@ -14,15 +14,21 @@ class Game{
   String debug(Fighter f){
     String debugText = "";
     debugText += "Fighter "+(f.leftEdge==0?"1":"2")+"\n";
-    debugText += "Pos   : "+nfs(f.pos.x, 3, 1)+", "+nfs(f.pos.y, 3, 1)+"\n";
-    debugText += "Vel   : "+nfs(f.vel.x, 3, 1)+", "+nfs(f.vel.y, 3, 1)+"\n";
     debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
     debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
-    debugText += "ShtMSD: "+f.shotsMissed+"\n";
-    debugText += "NetIn : "+Arrays.toString(f.inputs)+"\n";
-    debugText += "NetOut: "+Arrays.toString(f.netOut)+"\n";
-    debugText += "FOV   : "+f.fov+" : "+(f.fov/2)+"\n";
-    debugText += "Dir   : "+f.dir+" : "+(f.leftEdge==0?(degrees(PVector.angleBetween(f.vel, localfighters[1].pos))):(180-degrees(PVector.angleBetween(localfighters[1].vel, localfighters[0].pos))))+"\n";
+    debugText += "Input : \n";
+    debugText += "SO  , SOB , FOV , DIST, NOISE\n";
+    for(int i = 0; i < f.inputs.length; i++){
+      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
+    }
+    debugText += "\n\n";
+    debugText += "Output: \n";
+    debugText += "W   , A   , D   , SHO , FOV\n";
+    for(int i = 0; i < f.netOut.length; i++){
+      debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
+    }
+    debugText += "\n";
+    debugText += "FOV   : "+f.fov+"\n";
 
     debugText += "\n";
 
@@ -40,6 +46,6 @@ class Game{
       f.display();
       debuggingInfo += debug(f);
     }
-    text(debuggingInfo, height*0.05, height*0.2);
+    text(debuggingInfo, height*0.02, height*0.2);
   }
 }
