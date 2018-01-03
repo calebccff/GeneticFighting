@@ -1,4 +1,6 @@
 class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
+  final int SHOOT_COOLDOWN_LENGTH = 40;
+
   PVector pos, oldPos, vel = new PVector(0, 0); //Has a position and velocity
   color myfill; //Some dodgy stuff to make the two fighters different colours
   int leftEdge; //More dodgy stuff, used to offset each fighter so they don't share the same space.
@@ -7,14 +9,17 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   Bullet bullet;
 
   Fighter otherfighter;
+  float parent1Fit = 0;
+  float parent2Fit = 0;
 
   float netOut[] = new float[NUM_OUTPUTS];
   float[] inputs = new float[NUM_INPUTS]; //Setup the inputs
-  float dir = 0, oldDir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazy to learn how they work.
+  float dir = 0;//, oldDir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazy to learn how they work.
   float fov = 20f; //The Field of View, ie how wide their eyesight is.
   float speed = 0;
+  int shootCooldown = 0;
 
-  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, turnSpeed = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
+  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
   float shotsMissed = 0;
   boolean bulletInRange = false;
 
@@ -50,11 +55,17 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   Fighter(Fighter f1, Fighter f2, int half, int n){ //This means I have parents
     myNoise = n*1000;
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
+    parent1Fit = f1.fitness();
+    parent2Fit = f2.fitness();
     side(half);
   }
 
   public int compareTo(Fighter other){
-    return round(other.fitness()-fitness());
+    if(fitness() < other.fitness()){
+      return 1;
+    }else{
+      return -1;
+    }
   }
 
   void run(){ //Runs the NN and manages the fighter
@@ -83,7 +94,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     inputs[0] = withinFOV<fov/2?1:0;
     framesTracked += inputs[0];
-    framesTracked *= inputs[0];
+    framesTracked *= map(fov, 5, 120, 1, 0);
 
     //Now the same for the bullets
     try{
@@ -121,7 +132,10 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     fov += map(actions[4], 0, 1, -5, 5);
     fov = constrain(fov, 5, 120);
 
-    speed = forward<0.2?0:map(forward, 0.2, 1, 0.1, 8); //Forward speed
+    speed = map(forward, 0, 1, 0, 8); //Forward speed
+    if(abs(speed) < 2){
+      speed = 0;
+    }
     float dirVel = 0;
     if(dirVelLeft > dirVelRight+0.03){
       dirVel = -dirVelLeft;
@@ -138,18 +152,21 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       oldPos = pos.copy();
     }
     pos.add(vel); //Let's GOOOOO
-    if(shoot > 0.3 && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
+
+    //Shooting
+    if(shoot > 0.5 && shootCooldown == 0 && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
-      shotWhileFacing += inputs[0];
+      shotWhileFacing += inputs[0]*map(fov, 5, 120, 1, 0);
     }
     if(bullet != null && bullet.exists){
       bullet.run();
     }
+
+
     //Make sure you don't go off the edge.
     pos.x = constrain(pos.x, leftEdge+40, leftEdge+arena.width/2-40);
     pos.y = constrain(pos.y, 0, arena.height);
 
-    shotsLanded = otherfighter.hitsTaken;
     distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1)/10;
     distanceTravelled = constrain(distanceTravelled, 0, 100);
 
@@ -162,8 +179,9 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
         bulletInRange = false;
       }
     }
-
-    turnSpeed = abs(oldDir-dir);
+    //Decrement shooting cooldown.
+    shootCooldown--;
+    shootCooldown = constrain(shootCooldown, 0, SHOOT_COOLDOWN_LENGTH);
   }
 
   void shoot(){
@@ -177,13 +195,13 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     //Draw the pointer
     PVector l = vel; //Some funky stuff for drawing a line from a direction
-    if(vel.mag() > 1){ //Normalize it, if we're moving
-      l.normalize();
-      l.mult(10);
-    }else{
+    // if(vel.mag() > 1){ //Normalize it, if we're moving
+    //   l.normalize();
+    //   l.mult(10);
+    // }else{
       l = new PVector(10, 0); //Create a vector using `dir`
       l.rotate(radians(dir));
-    }
+    //}
     arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y);
     //Draw the FOV
     for(int i = -1; i <=1; i+=2){
@@ -203,16 +221,21 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
   }
 
+  float piFitness(){
+    return pi(fitness(), parent1Fit, parent2Fit);
+  }
+
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    float normalFOV = map(fov, 5, 120, 0, 1);
-    return -hitsTaken*2
-    +shotsLanded*8
-    +shotsAvoided*2
-    +distanceTravelled*1
-    -turnSpeed*2
-    -shotsMissed*2
-    +constrain(framesTracked, -50, 150)
-    +shotWhileFacing*20;
+    float normalFOV = map(fov, 5, 120, 0, 1); //Make this adjust the reward for EACH shot
+    float myFitness =
+    -hitsTaken*(float)fitnessWeights.get("HitsTaken")
+    +shotsLanded*(float)fitnessWeights.get("ShotsLanded")
+    +constrain(shotsAvoided, 0, 50)*(float)fitnessWeights.get("ShotsAvoided")
+    -shotsMissed*(float)fitnessWeights.get("ShotsMissed")
+    +map(constrain(framesTracked, 0, 150), 0, 150, 0, 4)*(float)fitnessWeights.get("FramesTracked")
+    +shotWhileFacing*(float)fitnessWeights.get("ShotWhileFacing");
+
+    return myFitness;
   }
 
   class Bullet{
@@ -231,11 +254,14 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     int run(){
       if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
         exists = false;
-        shotsMissed += 1;
+        shotsMissed += map(fov, 5, 120, 0.2, 1);
+        shootCooldown = SHOOT_COOLDOWN_LENGTH;
         return -1;
       }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 18){
         exists = false;
         target.hitsTaken++;
+        shotsLanded += map(fov, 5, 120, 1, 0);
+        shootCooldown = SHOOT_COOLDOWN_LENGTH;
         return -1;
       }
       bulletPos.add(bulletVel);

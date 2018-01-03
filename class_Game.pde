@@ -14,21 +14,28 @@ class Game{
   String debug(Fighter f){
     String debugText = "";
     debugText += "Fighter "+(f.leftEdge==0?"1":"2")+"\n";
-    debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
-    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
-    debugText += "Input : \n";
-    debugText += "SO  , SOB , FOV , DIST, NOISE\n";
-    for(int i = 0; i < f.inputs.length; i++){
-      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
-    }
-    debugText += "\n\n";
-    debugText += "Output: \n";
-    debugText += "W   , A   , D   , SHO , FOV\n";
-    for(int i = 0; i < f.netOut.length; i++){
-      debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
-    }
-    debugText += "\n";
+    debugText += "Shoot : "+(f.bullet!=null?"O":"X")+" : "+f.shootCooldown+"\n";
+    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+" : "+f.parent1Fit+" : "+f.parent2Fit+"\n";
+    debugText += "Hits taken : "+f.hitsTaken+"\n";
+    debugText += "Shots land : "+f.shotsLanded+"\n";
+    debugText += "Shots avoid: "+f.shotsAvoided+"\n";
+    debugText += "Dist Trave : "+f.distanceTravelled+"\n";
+    debugText += "Shots Miss : "+f.shotsMissed+"\n";
+    debugText += "Frames Trac: "+f.framesTracked+"\n";
+    debugText += "Shots Face : "+f.shotWhileFacing+"\n";
     debugText += "FOV   : "+f.fov+"\n";
+    // debugText += "Input : \n";
+    // debugText += "SO  , SOB , FOV , DIST, NOISE\n";
+    // for(int i = 0; i < f.inputs.length; i++){
+    //   debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
+    // }
+    // debugText += "\n\n";
+    // debugText += "Output: \n";
+    // debugText += "W   , A   , D   , SHO , FOV\n";
+    // for(int i = 0; i < f.netOut.length; i++){
+    //   debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
+    // }
+    debugText += "\n";
 
     debugText += "\n";
 

@@ -13,6 +13,10 @@ void keyReleased(){
   if(keyCode == 70){ //'f' key
     showFittest = !showFittest;
   }
+  if(keyCode == ESC){
+    config.dispose();
+    System.exit(0);
+  }
 }
 
 void mousePressed(){

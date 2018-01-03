@@ -4,6 +4,14 @@ import processing.event.*;
 import processing.opengl.*; 
 
 import java.util.Arrays; 
+import javax.swing.*; 
+import java.awt.*; 
+import java.awt.event.*; 
+import javax.swing.event.ChangeEvent; 
+import javax.swing.event.ChangeListener; 
+import java.awt.event.KeyEvent; 
+import java.awt.event.KeyListener; 
+import java.util.Hashtable; 
 
 import java.util.HashMap; 
 import java.util.ArrayList; 
@@ -37,15 +45,21 @@ public class geneticFighting extends PApplet {
 
  //Imports the Arrays class, used to convert array to string to create more readable output
 
-final int GAME_SIZE = 500; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
-final int GAME_TIME = 800; //The time (in frames) between each call of the breed function
-final float BREED_PERCENT = 0.2f; //How many of the top fighters are used to breed
+final int GAME_SIZE_MAX = 1000;
+
+int GAME_SIZE = 1; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
+int GAME_TIME = 800; //The time (in frames) between each call of the breed function
+float BREED_PERCENT = 0.2f; //How many of the top fighters are used to breed
 
 final int NUM_INPUTS = 5; //Constants which define the neural network
 final int[] NUM_HIDDEN = {7, 7};
 final int NUM_OUTPUTS = 5;
 float MUTATION_RATE = 0.2f;
-final float MUTATION_PERCENT = 0.05f;
+float progressVelocity1 = 0.8f;
+float progressVelocity2 = 0.3f;
+final float IMPROVEMENT_THRESHOLD = 0.5f;
+
+HashMap fitnessWeights = new HashMap();
 
 boolean showFittest = true; //This defines weather or not to show the fittest game or allow user control
 int timeShown = 0; //The number of frames you've been watching one game
@@ -54,73 +68,58 @@ int numGens = 0; //Counts the number of generations that have happened since the
 
 PGraphics arena; //This allows all the games to be drawn to a seperate canvas, avoids having to do lots of complex maths to display debug info
 
-Fighter[] fighters = new Fighter[GAME_SIZE*2]; //A one dimensional array which stores ALL of the fighters
-Game[] games       = new Game[GAME_SIZE]; //A one dimensional array whic stores all the concurrent games
+Fighter[] fighters; //A one dimensional array which stores ALL of the fighters
+Game[] games; //A one dimensional array whic stores all the concurrent games
+
+boolean running = false;
+
+public void settings(){
+  size(round(displayWidth*0.68f), displayHeight-48, FX2D);//fullScreen(FX2D); //That cinema experience //Configures the canvas
+}
 
 public void setup(){ //Called ONCE at the beggining of runtime
-  //fullScreen(FX2D); //That cinema experience //Configures the canvas
+  surface.setLocation(displayWidth-round(displayWidth*0.68f), 10);
   frameRate(600); //Set the framelimit
   //randomSeed(4); //FOR DEBUGGING
 
-  arena = createGraphics(round(width*0.6f), round(height*0.9f)); //Make the arena canvas
+  arena = createGraphics(round(height*0.9f), round(height*0.9f)); //Make the arena canvas
 
   imageMode(CENTER); //Define how images and rectangles are drawn to the screen
   rectMode(CENTER);
 
-  for(int i = 0; i < GAME_SIZE; i++){ //Initialises all the games
-    fighters[i*2] = new Fighter(LEFT, i*2); //Use some existing methods to specify what side of the screen each fighter is on
-    fighters[i*2+1] = new Fighter(RIGHT, i*2+1);
-
-    games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
-  }
-
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26); //Initialise the text, monospaced makes text much more readable
   textFont(mono);
-  textSize(height*0.027f);
-}
+  textSize(height*0.02f);
 
-public void breed(){ //This functions breeds a new generation from the current generation
-  try{
-    Arrays.sort(fighters); //Sorts the fighters using the compareTo method
-  }catch(IllegalArgumentException e){
-    println("Couldn't sort array...\n"+e);
-  }
-  Fighter[] toBreed = new Fighter[round(GAME_SIZE*2*BREED_PERCENT)];
-  for(int i = 0; i < toBreed.length; i++){
-    toBreed[i] = fighters[i];
-  }
-  for(int i = 0; i < GAME_SIZE; i++){
-    fighters[i*2] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], LEFT, i*2);
-    fighters[i*2+1] = new Fighter(toBreed[floor(random(toBreed.length))], toBreed[floor(random(toBreed.length))], RIGHT, i*2+1);
+  //Init fitness weights
+  fitnessWeights.put("HitsTaken", 8.0f);
+  fitnessWeights.put("ShotsLanded", 9.0f);
+  fitnessWeights.put("ShotsAvoided", 7.0f);
+  fitnessWeights.put("ShotsMissed", 4.0f);
+  fitnessWeights.put("FramesTracked", 8.0f);
+  fitnessWeights.put("ShotWhileFacing", 10.0f);
 
-    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
-  }
-  for(int i = 0; i < toBreed.length; i++){
-    if(random(1) < 0.3f){
-      fighters[i] = new Fighter((fighters[i].leftEdge==0?LEFT:RIGHT), i);
-    }
-    fighters[i].b = toBreed[i].b;
-  }
-  numGens++;
-  MUTATION_RATE *=0.96f;
-  MUTATION_RATE = constrain(MUTATION_RATE, 0.005f, 1);
+  makeConfigWindow();
+  noLoop();
 }
 
 public void draw(){ //Caleed 60 (ish) times per second
   background(50); //That space grey
-  for(Game g : games){
-    g.run();
+  if(running){
+    for(Game g : games){
+      g.run();
+    }
+    arena.beginDraw(); //Start drawing the ARENA
+    renderStage(); //Draw the line, and the fancy curvy edges
+    arena.stroke(0); //Black for the line, to show direction
+    arena.strokeWeight(2); //THICC lines
+    // for(Game g : games){
+    //   g.display();
+    // }
+    games[currentGame].display();
+    arena.endDraw(); //Stop drawing
   }
-  arena.beginDraw(); //Start drawing the ARENA
-  renderStage(); //Draw the line, and the fancy curvy edges
-  arena.stroke(0); //Black for the line, to show direction
-  arena.strokeWeight(2); //THICC lines
-  // for(Game g : games){
-  //   g.display();
-  // }
-  games[currentGame].display();
-  arena.endDraw(); //Stop drawing
   drawStage();
 
   text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1)+"\n"+"Gen: "+numGens+" - TS: "+showFittest+" / "+timeShown+"\n"+"MUT: "+nf(MUTATION_RATE, 1, 3), height*0.02f, height*0.04f);
@@ -142,6 +141,31 @@ public void draw(){ //Caleed 60 (ish) times per second
   timeShown++;
 }
 
+public void breed(){ //This functions breeds a new generation from the current generation
+  ArrayList<Fighter> toBreed = new ArrayList<Fighter>();
+  for(int i = 0; i < GAME_SIZE*2; i++){
+    for(int j = 0; j < fighters[i].piFitness(); j++){
+      toBreed.add(fighters[i]);
+    }
+  }
+  for(int i = 0; i < GAME_SIZE-20; i++){
+    fighters[i*2] = new Fighter(toBreed.get(floor(random(toBreed.size()))), toBreed.get(floor(random(toBreed.size()))), LEFT, i*2);
+    fighters[i*2+1] = new Fighter(toBreed.get(floor(random(toBreed.size()))), toBreed.get(floor(random(toBreed.size()))), RIGHT, i*2+1);
+
+    games[i] = new Game(fighters[i*2], fighters[i*2+1]);
+  }
+  for(int i = 0; i < 50; i++){
+    fighters[i].b = toBreed.get(i).b;
+  }
+  numGens++;
+  MUTATION_RATE *=0.96f;
+  MUTATION_RATE = constrain(MUTATION_RATE, 0.005f, 1);
+  progressVelocity1 *= 0.96f;
+  progressVelocity2 *= 0.96f;
+  progressVelocity1 = constrain(progressVelocity1, 0.5f, 1);
+  progressVelocity2 = constrain(progressVelocity2, 0, 0.5f);
+}
+
 public void drawStage(){
   image(arena, width*0.7f-height*0.05f, height*0.5f); //Draw the arena to the screen
   strokeWeight(5); //Even thicker lines
@@ -159,33 +183,46 @@ public void renderStage(){ //Draws the arena
 }
 class Brain {
 
-  Node[][] nodes; //Staggered 2d array of Node objects that make up the BRAIN
+  Node[][] nodesVisible = new Node[2][]; //Staggered 2d array of Node objects that make up the BRAIN
+  Node[][] nodesHidden;
 
   final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
   final float SYNAPSE_MAX = 2f;
 
   Brain(int lenInput, int[] lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
-    nodes[0] = new Node[lenInput]; //Initialises the second dimension of the array
-    for(int i = 0; i < lenHidden.length; i++){
-      nodes[i] = new Node[lenHidden[i]];
-    }
-    nodes[nodes.length-1] = new Node[lenOutput];
+    nodesVisible[0] = new Node[lenInput]; //Initialises the second dimension of the array
+    nodesVisible[1] = new Node[lenOutput];
 
-    for (int i = 0; i < nodes.length; i++) { //Nested FOR loop, creates each node
-      for (int j = 0; j < nodes[i].length; j++) {
-        try {
-          nodes[i][j] = new Node(nodes[i-1].length); //No. synapses equals the size of the previous layer.
-        }
-        catch (ArrayIndexOutOfBoundsException e) { //The first layer throws this exception because [0-1] throws a nullPointer.
-          nodes[i][j] = new Node(0); //No synapses
-        }
+    for(int i = 0; i < nodesVisible[0].length; i++){
+      nodesVisible[0][i] = new Node(0);
+    }
+
+    nodesHidden = new Node[lenHidden.length][];
+    for(int i = 0; i < nodesHidden.length; i++){
+      nodesHidden[i] = new Node[lenHidden[i]];
+    }
+
+    for(int i = 0; i < nodesHidden[0].length; i++){
+      nodesHidden[0][i] = new Node(nodesVisible[0].length);
+    }
+
+    for(int i = 1; i < lenHidden.length; i++){
+      for(int j = 0; j < lenHidden[i]; j++){
+        nodesHidden[i][j] = new Node(nodesHidden[i-1].length);
       }
+    }
+
+    for (int i = 0; i < nodesVisible[1].length; i++) { //Nested FOR loop, creates each node
+      nodesVisible[1][i] = new Node(nodesHidden[nodesHidden.length-1].length);
     }
   }
 
   Brain(Brain b1, Brain b2){ //This is used for evolution, basically creates a new BRAIN from two parents.
-    for(int i = 0; i < nodes.length; i++){
-      nodes[i] = new Node[b1.nodes[i].length];
+    nodesVisible[0] = new Node[b1.nodesVisible[0].length]; //Set the size of the staggered array, kinda crusty code MIGHTFIX
+    nodesVisible[1] = new Node[b1.nodesVisible[1].length];
+    nodesHidden = new Node[b1.nodesHidden.length][];
+    for(int i = 0; i < nodesHidden.length; i++){
+      nodesHidden[i] = new Node[b1.nodesHidden[i].length];
     }
 
     Brain chosen;
@@ -195,9 +232,14 @@ class Brain {
       chosen = b2;
     }
 
-    for(int i = 0; i < nodes.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
-      for(int j = 0; j < nodes[i].length; j++){
-        nodes[i][j] = new Node(chosen.nodes[i][j]); //Picks a random parent and uses their genes.
+    for(int i = 0; i < nodesVisible.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
+      for(int j = 0; j < nodesVisible[i].length; j++){
+        nodesVisible[i][j] = new Node(chosen.nodesVisible[i][j]); //Picks a random parent and uses their genes.
+      }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
+    }
+    for(int i = 0; i < nodesHidden.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
+      for(int j = 0; j < nodesHidden[i].length; j++){
+        nodesHidden[i][j] = new Node(chosen.nodesHidden[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
   }
@@ -205,27 +247,31 @@ class Brain {
   public float[] propForward(float[] inputs) { //Propagates forward, passes inputs through the net and gets an output.
     // Input
     for (int j = 0; j < inputs.length; j++) { //For the first layer, set the values.
-      nodes[0][j].value = inputs[j];
+      nodesVisible[0][j].value =
+      inputs[j];
     }
     // Hidden/Outer
-    for (int i = 1; i < nodes.length; i++) { //Set the next layer
-      for (int j = 0; j < nodes[i].length; j++) {
-        nodes[i][j].propForward(nodes[i-1]);
+    for (int i = 0; i < nodesHidden[0].length; i++) { //Set the next layer
+      nodesHidden[0][i].propForward(nodesVisible[0]);
+    }
+    for(int j = 1; j < nodesHidden.length; j++){
+      for(int i = 0; i < nodesHidden[j].length; i++){
+        nodesHidden[j][i].propForward(nodesHidden[j-1]);
       }
     }
+    for(int i = 0; i < nodesVisible[1].length; i++){
+      nodesVisible[1][i].propForward(nodesHidden[nodesHidden.length-1]);
+    }
+
     // Get/return the outputs
-    float[] output = new float[nodes[nodes.length-1].length]; //Gets the outputs from the last layer
+    float[] output = new float[nodesVisible[nodesVisible.length-1].length]; //Gets the outputs from the last layer
     for (int i = 0; i < output.length; i++) {
-      output[i] = nodes[nodes.length-1][i].value;
+      output[i] = nodesVisible[nodesVisible.length-1][i].value;
       //output[i] = sig(output[i]);
     }
 
     return output; //Return them
 
-  }
-
-  public float sig(float x) { //The sigmoid function, look it up.
-    return 1/(1+pow((float)Math.E, -x)); //looks like and S shape, Eulers number is AWESOME!
   }
 
   class Node { //Node class, could use a dictionary or somethin similar but this creates more logical code (and more efficient!)
@@ -242,11 +288,11 @@ class Brain {
     Node(Node parent){ //Takes a random parent Node (see above)
       synapse = new float[parent.synapse.length];
       for(int i = 0; i < synapse.length; i++){ //For each synapse
-        if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
-          synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
-        }else{
-          synapse[i] = parent.synapse[i]*random(1-MUTATION_PERCENT, 1+MUTATION_PERCENT);
-        }
+        // if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
+        //   synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
+        // }else{
+          synapse[i] = parent.synapse[i]*random(1-MUTATION_RATE, 1+MUTATION_RATE);
+        //}
       }
     }
 
@@ -261,6 +307,8 @@ class Brain {
   }
 }
 class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
+  final int SHOOT_COOLDOWN_LENGTH = 40;
+
   PVector pos, oldPos, vel = new PVector(0, 0); //Has a position and velocity
   int myfill; //Some dodgy stuff to make the two fighters different colours
   int leftEdge; //More dodgy stuff, used to offset each fighter so they don't share the same space.
@@ -269,14 +317,17 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   Bullet bullet;
 
   Fighter otherfighter;
+  float parent1Fit = 0;
+  float parent2Fit = 0;
 
   float netOut[] = new float[NUM_OUTPUTS];
   float[] inputs = new float[NUM_INPUTS]; //Setup the inputs
-  float dir = 0, oldDir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazy to learn how they work.
+  float dir = 0;//, oldDir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazy to learn how they work.
   float fov = 20f; //The Field of View, ie how wide their eyesight is.
   float speed = 0;
+  int shootCooldown = 0;
 
-  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, turnSpeed = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
+  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, distanceTravelled = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation, these don't do anything
   float shotsMissed = 0;
   boolean bulletInRange = false;
 
@@ -312,11 +363,17 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   Fighter(Fighter f1, Fighter f2, int half, int n){ //This means I have parents
     myNoise = n*1000;
     b = new Brain(f1.b, f2.b); //Just pass it on, some more stuff will happen here
+    parent1Fit = f1.fitness();
+    parent2Fit = f2.fitness();
     side(half);
   }
 
   public int compareTo(Fighter other){
-    return round(other.fitness()-fitness());
+    if(fitness() < other.fitness()){
+      return 1;
+    }else{
+      return -1;
+    }
   }
 
   public void run(){ //Runs the NN and manages the fighter
@@ -345,7 +402,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     inputs[0] = withinFOV<fov/2?1:0;
     framesTracked += inputs[0];
-    framesTracked *= inputs[0];
+    framesTracked *= map(fov, 5, 120, 1, 0);
 
     //Now the same for the bullets
     try{
@@ -383,7 +440,10 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     fov += map(actions[4], 0, 1, -5, 5);
     fov = constrain(fov, 5, 120);
 
-    speed = forward<0.2f?0:map(forward, 0.2f, 1, 0.1f, 8); //Forward speed
+    speed = map(forward, 0, 1, 0, 8); //Forward speed
+    if(abs(speed) < 2){
+      speed = 0;
+    }
     float dirVel = 0;
     if(dirVelLeft > dirVelRight+0.03f){
       dirVel = -dirVelLeft;
@@ -400,18 +460,21 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       oldPos = pos.copy();
     }
     pos.add(vel); //Let's GOOOOO
-    if(shoot > 0.3f && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
+
+    //Shooting
+    if(shoot > 0.5f && shootCooldown == 0 && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
-      shotWhileFacing += inputs[0];
+      shotWhileFacing += inputs[0]*map(fov, 5, 120, 1, 0);
     }
     if(bullet != null && bullet.exists){
       bullet.run();
     }
+
+
     //Make sure you don't go off the edge.
     pos.x = constrain(pos.x, leftEdge+40, leftEdge+arena.width/2-40);
     pos.y = constrain(pos.y, 0, arena.height);
 
-    shotsLanded = otherfighter.hitsTaken;
     distanceTravelled += map(dist(oldPos.x, oldPos.y, pos.x, pos.y), 0, 1+speed*10, 0, 1)/10;
     distanceTravelled = constrain(distanceTravelled, 0, 100);
 
@@ -424,8 +487,9 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
         bulletInRange = false;
       }
     }
-
-    turnSpeed = abs(oldDir-dir);
+    //Decrement shooting cooldown.
+    shootCooldown--;
+    shootCooldown = constrain(shootCooldown, 0, SHOOT_COOLDOWN_LENGTH);
   }
 
   public void shoot(){
@@ -439,13 +503,13 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     //Draw the pointer
     PVector l = vel; //Some funky stuff for drawing a line from a direction
-    if(vel.mag() > 1){ //Normalize it, if we're moving
-      l.normalize();
-      l.mult(10);
-    }else{
+    // if(vel.mag() > 1){ //Normalize it, if we're moving
+    //   l.normalize();
+    //   l.mult(10);
+    // }else{
       l = new PVector(10, 0); //Create a vector using `dir`
       l.rotate(radians(dir));
-    }
+    //}
     arena.line(pos.x, pos.y, pos.x+l.x, pos.y+l.y);
     //Draw the FOV
     for(int i = -1; i <=1; i+=2){
@@ -465,16 +529,21 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
   }
 
+  public float piFitness(){
+    return pi(fitness(), parent1Fit, parent2Fit);
+  }
+
   public float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    float normalFOV = map(fov, 5, 120, 0, 1);
-    return -hitsTaken*2
-    +shotsLanded*8
-    +shotsAvoided*2
-    +distanceTravelled*1
-    -turnSpeed*2
-    -shotsMissed*2
-    +constrain(framesTracked, -50, 150)
-    +shotWhileFacing*20;
+    float normalFOV = map(fov, 5, 120, 0, 1); //Make this adjust the reward for EACH shot
+    float myFitness =
+    -hitsTaken*(float)fitnessWeights.get("HitsTaken")
+    +shotsLanded*(float)fitnessWeights.get("ShotsLanded")
+    +constrain(shotsAvoided, 0, 50)*(float)fitnessWeights.get("ShotsAvoided")
+    -shotsMissed*(float)fitnessWeights.get("ShotsMissed")
+    +map(constrain(framesTracked, 0, 150), 0, 150, 0, 4)*(float)fitnessWeights.get("FramesTracked")
+    +shotWhileFacing*(float)fitnessWeights.get("ShotWhileFacing");
+
+    return myFitness;
   }
 
   class Bullet{
@@ -493,11 +562,14 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     public int run(){
       if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
         exists = false;
-        shotsMissed += 1;
+        shotsMissed += map(fov, 5, 120, 0.2f, 1);
+        shootCooldown = SHOOT_COOLDOWN_LENGTH;
         return -1;
       }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 18){
         exists = false;
         target.hitsTaken++;
+        shotsLanded += map(fov, 5, 120, 1, 0);
+        shootCooldown = SHOOT_COOLDOWN_LENGTH;
         return -1;
       }
       bulletPos.add(bulletVel);
@@ -526,21 +598,28 @@ class Game{
   public String debug(Fighter f){
     String debugText = "";
     debugText += "Fighter "+(f.leftEdge==0?"1":"2")+"\n";
-    debugText += "Shoot : "+(f.bullet!=null?"O\n":"X\n");
-    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
-    debugText += "Input : \n";
-    debugText += "SO  , SOB , FOV , DIST, NOISE\n";
-    for(int i = 0; i < f.inputs.length; i++){
-      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
-    }
-    debugText += "\n\n";
-    debugText += "Output: \n";
-    debugText += "W   , A   , D   , SHO , FOV\n";
-    for(int i = 0; i < f.netOut.length; i++){
-      debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
-    }
-    debugText += "\n";
+    debugText += "Shoot : "+(f.bullet!=null?"O":"X")+" : "+f.shootCooldown+"\n";
+    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+" : "+f.parent1Fit+" : "+f.parent2Fit+"\n";
+    debugText += "Hits taken : "+f.hitsTaken+"\n";
+    debugText += "Shots land : "+f.shotsLanded+"\n";
+    debugText += "Shots avoid: "+f.shotsAvoided+"\n";
+    debugText += "Dist Trave : "+f.distanceTravelled+"\n";
+    debugText += "Shots Miss : "+f.shotsMissed+"\n";
+    debugText += "Frames Trac: "+f.framesTracked+"\n";
+    debugText += "Shots Face : "+f.shotWhileFacing+"\n";
     debugText += "FOV   : "+f.fov+"\n";
+    // debugText += "Input : \n";
+    // debugText += "SO  , SOB , FOV , DIST, NOISE\n";
+    // for(int i = 0; i < f.inputs.length; i++){
+    //   debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
+    // }
+    // debugText += "\n\n";
+    // debugText += "Output: \n";
+    // debugText += "W   , A   , D   , SHO , FOV\n";
+    // for(int i = 0; i < f.netOut.length; i++){
+    //   debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
+    // }
+    debugText += "\n";
 
     debugText += "\n";
 
@@ -561,6 +640,52 @@ class Game{
     text(debuggingInfo, height*0.02f, height*0.2f);
   }
 }
+public float sig(float x) { //The sigmoid function, look it up.
+  return 1/(1+exp(-x)); //looks like and S shape, Eulers number is AWESOME!
+}
+
+public float pi(float D, float p1, float p2){
+  float imp1 = D-p1;
+  float imp2 = D-p2;
+  int choice = 0;
+  if(imp1 > IMPROVEMENT_THRESHOLD){
+    choice += 70;
+  } else if (imp1 < -IMPROVEMENT_THRESHOLD){
+    choice += 30;
+  } else {
+    choice += 50;
+  }
+  if(imp2 > IMPROVEMENT_THRESHOLD){
+    choice += 7;
+  } else if (imp2 < -IMPROVEMENT_THRESHOLD){
+    choice += 3;
+  } else {
+    choice += 5;
+  }
+  switch (choice){
+    case 77:
+    // better than both
+    return 5;
+    case 75:
+    case 57:
+    // better than one
+    return 4;
+    case 55:
+    // equal to both
+    return 3;
+    case 73:
+    case 53:
+    case 35:
+    case 37:
+    // worse than one
+    return 2;
+    case 33:
+    // worse than both
+    default:
+    //error
+    return 1;
+  }
+}
 int currentGame = 0;
 
 public void keyPressed(){
@@ -576,6 +701,10 @@ public void keyReleased(){
   if(keyCode == 70){ //'f' key
     showFittest = !showFittest;
   }
+  if(keyCode == ESC){
+    config.dispose();
+    System.exit(0);
+  }
 }
 
 public void mousePressed(){
@@ -584,7 +713,117 @@ public void mousePressed(){
 public void mouseReleased(){
   frameRate(600);
 }
-  public void settings() {  size(1280, 720, FX2D); }
+
+
+
+
+
+
+
+
+
+
+ConfigWindow config;
+
+public class ConfigWindow extends JFrame{
+	private final int WIDTH = 500;
+	private final int HEIGHT = 850;
+	private final int GAME_SIZE_SLIDER_TICKS = 5;
+
+  private JButton buttonRun, buttonExit;
+  private JSlider sliderGameSize;
+
+	public ConfigWindow(){
+		setTitle("Genetic Fighting Config");
+		setSize(WIDTH, HEIGHT);
+		setVisible(true);
+		setDefaultCloseOperation(EXIT_ON_CLOSE);
+    Container contentPane = getContentPane();
+    contentPane.setLayout(new BoxLayout(this.getContentPane(), BoxLayout.Y_AXIS));
+    contentPane.add(Box.createRigidArea(new Dimension(0, 40)));
+
+    JPanel[] panes = new JPanel[4];
+    for(int i = 0; i < panes.length; i++){
+      panes[i] = new JPanel();
+      panes[i].setLayout(new BoxLayout(panes[i], BoxLayout.LINE_AXIS));
+    }
+
+
+    buttonRun = new JButton("Run It!");
+    buttonRun.addActionListener(new ButtonHandler(){
+      public void actionPerformed(ActionEvent e){
+				if(!running){
+					fighters = new Fighter[GAME_SIZE*2];
+					games = new Game[GAME_SIZE];
+					for(int i = 0; i < GAME_SIZE; i++){ //Initialises all the games
+				    fighters[i*2] = new Fighter(LEFT, i*2); //Use some existing methods to specify what side of the screen each fighter is on
+				    fighters[i*2+1] = new Fighter(RIGHT, i*2+1);
+
+				    games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
+				  }
+					running = true;
+	        loop();
+				}
+      }
+    });
+
+    buttonExit = new JButton("Exit");
+    buttonExit.addActionListener(new ButtonHandler(){
+      public void actionPerformed(ActionEvent e){
+        dispose();
+        System.exit(0);
+      }
+    });
+    panes[0].add(buttonRun);
+    panes[0].add(Box.createRigidArea(new Dimension(10, 0)));
+    panes[0].add(buttonExit);
+
+    sliderGameSize = new JSlider(JSlider.HORIZONTAL, 0, GAME_SIZE_MAX, 200);
+    sliderGameSize.setMinorTickSpacing(50);
+    sliderGameSize.setMajorTickSpacing(100);
+    sliderGameSize.setPaintTicks(true);
+    sliderGameSize.setSnapToTicks(true);
+
+    ChangeListener sliderGameSizeListener = new ChangeListener() {
+      public void stateChanged(ChangeEvent e) {
+				if(!running){
+	        int value = sliderGameSize.getValue();
+	        GAME_SIZE = value>1?value:2;
+				}
+      }
+    };
+    sliderGameSize.addChangeListener(sliderGameSizeListener);
+
+    Hashtable labelTable = new Hashtable();
+    labelTable.put(new Integer(0), new JLabel("2"));
+		int tickInterval = GAME_SIZE_MAX/GAME_SIZE_SLIDER_TICKS;
+    for(int i = 1; i < GAME_SIZE_MAX/tickInterval; i++){
+      labelTable.put(i*tickInterval, new JLabel(Integer.toString(i*tickInterval)));
+    }
+    labelTable.put(GAME_SIZE_MAX, new JLabel("Max"));
+
+    sliderGameSize.setLabelTable(labelTable);
+    sliderGameSize.setPaintLabels(true);
+
+    panes[1].add(sliderGameSize);
+
+    for(int i = 0; i < panes.length; i++){
+      contentPane.add(panes[i]);
+    }
+	}
+
+  private class ButtonHandler implements ActionListener{
+		public void actionPerformed(ActionEvent e){}
+	}
+
+}
+
+public void makeConfigWindow(){
+	 config = new ConfigWindow();
+
+  config.setVisible(false);
+  config.setVisible(true);
+}
   static public void main(String[] passedArgs) {
     String[] appletArgs = new String[] { "geneticFighting" };
     if (passedArgs != null) {
