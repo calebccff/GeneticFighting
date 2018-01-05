@@ -63,26 +63,26 @@ class Brain {
 
   float[] propForward(float[] inputs) { //Propagates forward, passes inputs through the net and gets an output.
     // Input
-    for (int j = 0; j < inputs.length; j++) { //For the first layer, set the values.
+    for (int j = 0; j < inputs.length; ++j) { //For the first layer, set the values.
       nodesVisible[0][j].value =
       inputs[j];
     }
     // Hidden/Outer
-    for (int i = 0; i < nodesHidden[0].length; i++) { //Set the next layer
+    for (int i = 0; i < nodesHidden[0].length; ++i) { //Set the next layer
       nodesHidden[0][i].propForward(nodesVisible[0]);
     }
-    for(int j = 1; j < nodesHidden.length; j++){
-      for(int i = 0; i < nodesHidden[j].length; i++){
+    for(int j = 1; j < nodesHidden.length; ++j){
+      for(int i = 0; i < nodesHidden[j].length; ++i){
         nodesHidden[j][i].propForward(nodesHidden[j-1]);
       }
     }
-    for(int i = 0; i < nodesVisible[1].length; i++){
+    for(int i = 0; i < nodesVisible[1].length; ++i){
       nodesVisible[1][i].propForward(nodesHidden[nodesHidden.length-1]);
     }
 
     // Get/return the outputs
     float[] output = new float[nodesVisible[nodesVisible.length-1].length]; //Gets the outputs from the last layer
-    for (int i = 0; i < output.length; i++) {
+    for (int i = 0; i < output.length; ++i) {
       output[i] = nodesVisible[nodesVisible.length-1][i].value;
       //output[i] = sig(output[i]);
     }
@@ -97,25 +97,21 @@ class Brain {
 
     Node(int synLen) { //Default constructer, for RANDOM initialisation
       synapse = new float[synLen];
-      for (int i = 0; i < synLen; i++) {
+      for (int i = 0; i < synLen; ++i) {
         synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX);
       }
     }
 
     Node(Node parent){ //Takes a random parent Node (see above)
       synapse = new float[parent.synapse.length];
-      for(int i = 0; i < synapse.length; i++){ //For each synapse
-        // if(random(1)<=MUTATION_RATE){ //Small chance of mutation.
-        //   synapse[i] = random(SYNAPSE_MIN, SYNAPSE_MAX); //At the moment picks new random value, MIGHTFIX
-        // }else{
-          synapse[i] = parent.synapse[i]*random(1-MUTATION_RATE, 1+MUTATION_RATE);
-        //}
+      for(int i = 0; i < synapse.length; ++i){ //For each synapse
+        synapse[i] = parent.synapse[i]*random(1-MUTATION_RATE, 1+MUTATION_RATE);
       }
     }
 
     void propForward(Node[] nodes) { //Propagates forward, takes and array of the previous layer
       value = 0;
-      for (int i = 0; i < nodes.length; i++) { //Set my value to be the sum of each previous node * the synaps
+      for (int i = 0; i < nodes.length; ++i) { //Set my value to be the sum of each previous node * the synaps
         value += nodes[i].value*synapse[i];
       }
       value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.

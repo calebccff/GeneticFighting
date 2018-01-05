@@ -1,13 +1,3 @@
-/* OLD  NOTES
- - Inputs:
-  + Enemy to left (lo) or right (hi)
-  + Enemy bullet to left (lo) or right (hi)
- - Outputs:
-  + Move forward? (confidence affects speed)
-  + Turn left (lo) or right (hi) (confidence affects speed)
-  + Shoot (confidence affects bullet velocity)
-*/
-
 /*Current functionality
  - inputs
   + Can I see the enemy?
@@ -102,7 +92,7 @@ void draw(){ //Caleed 60 (ish) times per second
   }
   if(showFittest && timeShown > 60){
     float bestFitness = 0;
-    for(int i = 0; i < GAME_SIZE; i++){
+    for(int i = 0; i < GAME_SIZE; ++i){
       float fitness = games[i].localfighters[0].fitness()+games[i].localfighters[1].fitness();
       if(fitness > bestFitness){
         bestFitness = fitness;
@@ -118,17 +108,17 @@ void draw(){ //Caleed 60 (ish) times per second
 void breed(){ //This functions breeds a new generation from the current generation
   ArrayList<Fighter> toBreed = new ArrayList<Fighter>();
   for(int i = 0; i < GAME_SIZE*2; i++){
-    for(int j = 0; j < fighters[i].piFitness(); j++){
+    for(int j = 0; j < fighters[i].piFitness(); ++j){
       toBreed.add(fighters[i]);
     }
   }
-  for(int i = 0; i < GAME_SIZE-20; i++){
+  for(int i = 0; i < GAME_SIZE-20; ++i){
     fighters[i*2] = new Fighter(toBreed.get(floor(random(toBreed.size()))), toBreed.get(floor(random(toBreed.size()))), LEFT, i*2);
     fighters[i*2+1] = new Fighter(toBreed.get(floor(random(toBreed.size()))), toBreed.get(floor(random(toBreed.size()))), RIGHT, i*2+1);
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
   }
-  for(int i = 0; i < 50; i++){
+  for(int i = 0; i < 50; ++i){
     fighters[i].b = toBreed.get(i).b;
   }
   numGens++;
