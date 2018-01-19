@@ -220,10 +220,10 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
     float normalFOV = map(fov, 5, 120, 0, 1); //TODO: Make this adjust the reward for EACH shot
     float myFitness =
-    -hitsTaken*(float)fitnessWeights.get("HitsTaken")
+    +hitsTaken*(float)fitnessWeights.get("HitsTaken")
     +shotsLanded*(float)fitnessWeights.get("ShotsLanded")
     +constrain(shotsAvoided, 0, 50)*(float)fitnessWeights.get("ShotsAvoided")
-    -shotsMissed*(float)fitnessWeights.get("ShotsMissed")
+    +shotsMissed*(float)fitnessWeights.get("ShotsMissed")
     +map(constrain(framesTracked, 0, 150), 0, 150, 0, 4)*(float)fitnessWeights.get("FramesTracked")
     +shotWhileFacing*(float)fitnessWeights.get("ShotWhileFacing");
 
