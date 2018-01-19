@@ -1,10 +1,10 @@
 class Brain {
 
-  Node[][] nodesVisible = new Node[2][]; //Staggered 2d array of Node objects that make up the BRAIN
-  Node[][] nodesHidden;
+  private Node[][] nodesVisible = new Node[2][]; //Staggered 2d array of Node objects that make up the BRAIN
+  private Node[][] nodesHidden;
 
-  final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
-  final float SYNAPSE_MAX = 2f;
+  private final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
+  private final float SYNAPSE_MAX = 2f;
 
   Brain(int lenInput, int[] lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodesVisible[0] = new Node[lenInput]; //Initialises the second dimension of the array
@@ -84,7 +84,7 @@ class Brain {
     float[] output = new float[nodesVisible[nodesVisible.length-1].length]; //Gets the outputs from the last layer
     for (int i = 0; i < output.length; ++i) {
       output[i] = nodesVisible[nodesVisible.length-1][i].value;
-      //output[i] = sig(output[i]);
+      output[i] = sig(output[i]);
     }
 
     return output; //Return them
@@ -114,7 +114,7 @@ class Brain {
       for (int i = 0; i < nodes.length; ++i) { //Set my value to be the sum of each previous node * the synaps
         value += nodes[i].value*synapse[i];
       }
-      value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
+      //value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
     }
 
   }

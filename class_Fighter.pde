@@ -89,9 +89,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
     }
 
-    //float minFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())-radians(fov/2))), otherfighter.pos));
-    //float maxFOVHeading = degrees(PVector.angleBetween(PVector.fromAngle(radians(degrees(vel.heading())+radians(fov/2))), otherfighter.pos));
-
     inputs[0] = withinFOV<fov/2?1:0;
     framesTracked += inputs[0];
     framesTracked *= map(fov, 5, 120, 1, 0);
@@ -116,11 +113,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     inputs[3] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
     inputs[4] = map(noise((frameCount+myNoise)*0.006), 0.15, 0.85, 0, 1);
     vel = tempVel.copy();
-    //inputs[0] = map(PVector.angleBetween(vel, otherfighter.pos), 0, TWO_PI, 0, 1); //More guesswork, these inputs aren't gonna produce useful results
-    //inputs[1] = otherfighter.bullet!=null?(map(PVector.angleBetween(vel, otherfighter.bullet.bulletPos), 0, TWO_PI, 0, 1)):0.5; //Involes bullets, not implemented.
-    //float angBetween = degrees(PVector.angleBetween(vel, otherfighter.pos));
-    //inputs[0] = (abs(angBetween)<10?1:0);
-    //inputs[1] = (otherfighter.bullet!=null?(degrees(abs(otherfighter.bullet.bulletVel.heading())-vel.heading())<30?1:0):0);
     float[] actions = b.propForward(inputs); //Get the output of my BRAIN
     netOut = actions;
     float forward = actions[0]; //Should I move forward?
@@ -226,7 +218,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   }
 
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    float normalFOV = map(fov, 5, 120, 0, 1); //Make this adjust the reward for EACH shot
+    float normalFOV = map(fov, 5, 120, 0, 1); //TODO: Make this adjust the reward for EACH shot
     float myFitness =
     -hitsTaken*(float)fitnessWeights.get("HitsTaken")
     +shotsLanded*(float)fitnessWeights.get("ShotsLanded")

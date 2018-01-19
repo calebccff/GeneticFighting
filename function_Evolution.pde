@@ -23,24 +23,24 @@ float pi(float D, float p1, float p2){
   switch (choice){
     case 77:
     // better than both
-    return 5;
+    return 5; //<
     case 75:
     case 57:
     // better than one
-    return 4;
+    return 4; //<
     case 55:
     // equal to both
-    return 3;
+    return 3; //<
     case 73:
     case 53:
     case 35:
     case 37:
     // worse than one
-    return 2;
+    return 2; //<
     case 33:
     // worse than both
     default:
     //error
-    return 1;
+    return 1; //<
   }
 }

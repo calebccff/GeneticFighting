@@ -12,6 +12,8 @@ import javax.swing.event.ChangeListener;
 import java.awt.event.KeyEvent; 
 import java.awt.event.KeyListener; 
 import java.util.Hashtable; 
+import java.text.NumberFormat; 
+import javax.swing.text.NumberFormatter; 
 
 import java.util.HashMap; 
 import java.util.ArrayList; 
@@ -45,8 +47,6 @@ final int NUM_INPUTS = 5; //Constants which define the neural network
 final int[] NUM_HIDDEN = {7, 7};
 final int NUM_OUTPUTS = 5;
 float MUTATION_RATE = 0.2f;
-float progressVelocity1 = 0.8f;
-float progressVelocity2 = 0.3f;
 final float IMPROVEMENT_THRESHOLD = 0.5f;
 
 HashMap fitnessWeights = new HashMap();
@@ -64,15 +64,14 @@ Game[] games; //A one dimensional array whic stores all the concurrent games
 boolean running = false;
 
 public void settings(){
-  size(round(displayWidth*0.68f), displayHeight-48, FX2D);//fullScreen(FX2D); //That cinema experience //Configures the canvas
+  size(round(displayWidth*0.68f), displayHeight-48, FX2D); //Makes the window invisible, untested on other platforms
 }
 
 public void setup(){ //Called ONCE at the beggining of runtime
-  surface.setLocation(displayWidth-round(displayWidth*0.68f), 10);
-  frameRate(600); //Set the framelimit
+  frameRate(600); //Set the framelimit, hehe
   //randomSeed(4); //FOR DEBUGGING
 
-  arena = createGraphics(round(height*0.9f), round(height*0.9f)); //Make the arena canvas
+  arena = createGraphics(round(height*0.8f), round(height*0.8f)); //Make the arena canvas
 
   imageMode(CENTER); //Define how images and rectangles are drawn to the screen
   rectMode(CENTER);
@@ -90,11 +89,12 @@ public void setup(){ //Called ONCE at the beggining of runtime
   fitnessWeights.put("FramesTracked", 8.0f);
   fitnessWeights.put("ShotWhileFacing", 10.0f);
 
+  surface.setSize(-1, -1);
   makeConfigWindow();
   noLoop();
 }
 
-public void draw(){ //Caleed 60 (ish) times per second
+public void draw(){ //Called 60 (ish) times per second
   background(50); //That space grey
   if(running){
     for(Game g : games){
@@ -150,10 +150,6 @@ public void breed(){ //This functions breeds a new generation from the current g
   numGens++;
   MUTATION_RATE *=0.96f;
   MUTATION_RATE = constrain(MUTATION_RATE, 0.005f, 1);
-  progressVelocity1 *= 0.96f;
-  progressVelocity2 *= 0.96f;
-  progressVelocity1 = constrain(progressVelocity1, 0.5f, 1);
-  progressVelocity2 = constrain(progressVelocity2, 0, 0.5f);
 }
 
 public void drawStage(){
@@ -173,11 +169,11 @@ public void renderStage(){ //Draws the arena
 }
 class Brain {
 
-  Node[][] nodesVisible = new Node[2][]; //Staggered 2d array of Node objects that make up the BRAIN
-  Node[][] nodesHidden;
+  private Node[][] nodesVisible = new Node[2][]; //Staggered 2d array of Node objects that make up the BRAIN
+  private Node[][] nodesHidden;
 
-  final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
-  final float SYNAPSE_MAX = 2f;
+  private final float SYNAPSE_MIN = -2f; //Some constants to fine tune the NN, could have a drastic effect on evolution
+  private final float SYNAPSE_MAX = 2f;
 
   Brain(int lenInput, int[] lenHidden, int lenOutput) { //Default constructor, specify the lengths of each layer
     nodesVisible[0] = new Node[lenInput]; //Initialises the second dimension of the array
@@ -257,7 +253,7 @@ class Brain {
     float[] output = new float[nodesVisible[nodesVisible.length-1].length]; //Gets the outputs from the last layer
     for (int i = 0; i < output.length; ++i) {
       output[i] = nodesVisible[nodesVisible.length-1][i].value;
-      //output[i] = sig(output[i]);
+      output[i] = sig(output[i]);
     }
 
     return output; //Return them
@@ -287,9 +283,23 @@ class Brain {
       for (int i = 0; i < nodes.length; ++i) { //Set my value to be the sum of each previous node * the synaps
         value += nodes[i].value*synapse[i];
       }
-      value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
+      //value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
     }
 
+  }
+}
+class GameThread{
+  int subsetFrom, subsetTo;
+
+  GameThread(int f, int t){ //From what index of `games` to what
+    subsetFrom = f;
+    subsetTo = t;
+  }
+
+  public void run(){
+    for(int i = subsetFrom; i < subsetTo; ++i){
+      games[i].run();
+    }
   }
 }
 class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
@@ -709,6 +719,8 @@ public void mouseReleased(){
 
 
 
+
+
 ConfigWindow config;
 
 public class ConfigWindow extends JFrame{
@@ -716,8 +728,13 @@ public class ConfigWindow extends JFrame{
 	private final int HEIGHT = 850;
 	private final int GAME_SIZE_SLIDER_TICKS = 5; //Number of ticks between each number in the game size slider
 
-  private JButton buttonRun, buttonExit; //Init all the button and stuff
-  private JSlider sliderGameSize;
+  private JButton buttonRun, buttonExit; //Init all the button and stuff //PANE 0
+
+	private JFormattedTextField textGameSize; //PANE 1
+	private NumberFormat format = NumberFormat.getInstance();
+	private NumberFormatter formatter = new NumberFormatter(format);
+	private JLabel labelGameSize;
+
 
 	public ConfigWindow(){ //The constructer, initialises the window
 		setTitle("Genetic Fighting Config"); //Set the title
@@ -734,22 +751,25 @@ public class ConfigWindow extends JFrame{
       panes[i].setLayout(new BoxLayout(panes[i], BoxLayout.LINE_AXIS));
     }
 
-
+		//PANE 0
     buttonRun = new JButton("Run It!"); //The run button
     buttonRun.addActionListener(new ButtonHandler(){ //Add an event listener to call a function when an action is performed
       public void actionPerformed(ActionEvent e){
-				if(!running){ //You can only click run when it's not running
-					fighters = new Fighter[GAME_SIZE*2]; //Create all the fighters
-					games = new Game[GAME_SIZE];
-					for(int i = 0; i < GAME_SIZE; ++i){ //Initialises all the games
-				    fighters[i*2] = new Fighter(LEFT, i*2); //Use some existing methods to specify what side of the screen each fighter is on
-				    fighters[i*2+1] = new Fighter(RIGHT, i*2+1);
+			GAME_SIZE = Integer.parseInt(textGameSize.getText());
+			if(GAME_SIZE < 50) GAME_SIZE = 50;
+				fighters = new Fighter[GAME_SIZE*2]; //Create all the fighters
+				games = new Game[GAME_SIZE];
+				for(int i = 0; i < GAME_SIZE; ++i){ //Initialises all the games
+			    fighters[i*2] = new Fighter(LEFT, i*2); //Use some existing methods to specify what side of the screen each fighter is on
+			    fighters[i*2+1] = new Fighter(RIGHT, i*2+1);
 
-				    games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
-				  }
-					running = true;
-	        loop();
-				}
+			    games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
+			  }
+				running = true;
+				setVisible(false);
+				surface.setLocation(displayWidth-round(displayWidth*0.68f), 10);
+				surface.setSize(round(displayWidth*0.68f), displayHeight-48);
+        loop();
       }
     });
 
@@ -764,38 +784,26 @@ public class ConfigWindow extends JFrame{
     panes[0].add(Box.createRigidArea(new Dimension(10, 0)));
     panes[0].add(buttonExit);
 
-    sliderGameSize = new JSlider(JSlider.HORIZONTAL, 0, GAME_SIZE_MAX, 200); //Create a slider for the game size
-    sliderGameSize.setMinorTickSpacing(50); //Setup how the slider works
-    sliderGameSize.setMajorTickSpacing(100);
-    sliderGameSize.setPaintTicks(true);
-    sliderGameSize.setSnapToTicks(true);
+		//PANE 1
 
-    ChangeListener sliderGameSizeListener = new ChangeListener() { //Creates a listener to detect when the slider is changed
-      public void stateChanged(ChangeEvent e) {
-				if(!running){
-	        int value = sliderGameSize.getValue(); //Temporary variable, for readability
-	        GAME_SIZE = value>1?value:2; //Can't have less than 2 games
-				}
-      }
-    };
-    sliderGameSize.addChangeListener(sliderGameSizeListener); //Add the listener to the slider
+		labelGameSize = new JLabel("Number of games (50-1000)");
 
-    Hashtable labelTable = new Hashtable(); //Hashtable to store the labels for the slider.
-    labelTable.put(new Integer(0), new JLabel("2")); //The minimum
-		int tickInterval = GAME_SIZE_MAX/GAME_SIZE_SLIDER_TICKS; //Number of ticks
-    for(int i = 1; i < GAME_SIZE_MAX/tickInterval; i++){ //Add the numbers
-      labelTable.put(i*tickInterval, new JLabel(Integer.toString(i*tickInterval)));
-    }
-    labelTable.put(GAME_SIZE_MAX, new JLabel("Max")); //Add the Max label
+		formatter.setValueClass(Integer.class);
+    formatter.setMinimum(1);
+    formatter.setMaximum(1000);
+    formatter.setAllowsInvalid(false);
 
-    sliderGameSize.setLabelTable(labelTable); //Make slider use the labels
-    sliderGameSize.setPaintLabels(true); //Display the labels
+    textGameSize = new JFormattedTextField(formatter);
 
-    panes[1].add(sliderGameSize); //Add the slider to the first pane
+
+		panes[1].add(labelGameSize);
+    panes[1].add(textGameSize); //Add the slider to the first pane
+		panes[1].add(Box.createRigidArea(new Dimension(200, 0)));
 
     for(int i = 0; i < panes.length; i++){ //Add all the horizontal panes to the vertical pane
       contentPane.add(panes[i]);
     }
+		contentPane.add(Box.createRigidArea(new Dimension(0, 20000)));
 	}
 
   private class ButtonHandler implements ActionListener{ //To be overwritten
@@ -806,6 +814,7 @@ public class ConfigWindow extends JFrame{
 
 public void makeConfigWindow(){ //Function called in setup to create the config window
 	 config = new ConfigWindow();
+	 config.setResizable(false);
 
   config.setVisible(false); //Force the window to refresh, fixes a glitch
   config.setVisible(true);

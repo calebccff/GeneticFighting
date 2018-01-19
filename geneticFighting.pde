@@ -19,8 +19,6 @@ final int NUM_INPUTS = 5; //Constants which define the neural network
 final int[] NUM_HIDDEN = {7, 7};
 final int NUM_OUTPUTS = 5;
 float MUTATION_RATE = 0.2f;
-float progressVelocity1 = 0.8;
-float progressVelocity2 = 0.3;
 final float IMPROVEMENT_THRESHOLD = 0.5;
 
 HashMap fitnessWeights = new HashMap();
@@ -38,15 +36,14 @@ Game[] games; //A one dimensional array whic stores all the concurrent games
 boolean running = false;
 
 void settings(){
-  size(round(displayWidth*0.68), displayHeight-48, FX2D);//fullScreen(FX2D); //That cinema experience //Configures the canvas
+  size(round(displayWidth*0.68), displayHeight-48, FX2D); //Makes the window invisible, untested on other platforms
 }
 
 void setup(){ //Called ONCE at the beggining of runtime
-  surface.setLocation(displayWidth-round(displayWidth*0.68), 10);
-  frameRate(600); //Set the framelimit
+  frameRate(600); //Set the framelimit, hehe
   //randomSeed(4); //FOR DEBUGGING
 
-  arena = createGraphics(round(height*0.9), round(height*0.9)); //Make the arena canvas
+  arena = createGraphics(round(height*0.8), round(height*0.8)); //Make the arena canvas
 
   imageMode(CENTER); //Define how images and rectangles are drawn to the screen
   rectMode(CENTER);
@@ -64,11 +61,12 @@ void setup(){ //Called ONCE at the beggining of runtime
   fitnessWeights.put("FramesTracked", 8.0);
   fitnessWeights.put("ShotWhileFacing", 10.0);
 
+  surface.setSize(-1, -1);
   makeConfigWindow();
   noLoop();
 }
 
-void draw(){ //Caleed 60 (ish) times per second
+void draw(){ //Called 60 (ish) times per second
   background(50); //That space grey
   if(running){
     for(Game g : games){
@@ -124,10 +122,6 @@ void breed(){ //This functions breeds a new generation from the current generati
   numGens++;
   MUTATION_RATE *=0.96;
   MUTATION_RATE = constrain(MUTATION_RATE, 0.005, 1);
-  progressVelocity1 *= 0.96;
-  progressVelocity2 *= 0.96;
-  progressVelocity1 = constrain(progressVelocity1, 0.5, 1);
-  progressVelocity2 = constrain(progressVelocity2, 0, 0.5);
 }
 
 void drawStage(){
