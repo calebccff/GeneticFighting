@@ -1,25 +1,4 @@
-/*Current functionality
- - inputs
-  + Can I see the enemy?
-  + Can I see the enemy's bullet?
-  + What's my fov
-  + Distance between enemy and me
-  + Gaussian noise - encourage random actions.
-*/
-
 import java.util.Arrays; //Imports the Arrays class, used to convert array to string to create more readable output
-
-final int GAME_SIZE_MAX = 1000;
-
-int GAME_SIZE = 1; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
-int GAME_TIME = 800; //The time (in frames) between each call of the breed function
-float BREED_PERCENT = 0.2; //How many of the top fighters are used to breed
-
-final int NUM_INPUTS = 5; //Constants which define the neural network
-final int[] NUM_HIDDEN = {7, 7};
-final int NUM_OUTPUTS = 5;
-float MUTATION_RATE = 0.2f;
-final float IMPROVEMENT_THRESHOLD = 0.5;
 
 HashMap fitnessWeights = new HashMap();
 
@@ -54,12 +33,12 @@ void setup(){ //Called ONCE at the beggining of runtime
   textSize(height*0.02);
 
   //Init fitness weights
-  fitnessWeights.put("HitsTaken", 8.0);
-  fitnessWeights.put("ShotsLanded", 9.0);
-  fitnessWeights.put("ShotsAvoided", 7.0);
-  fitnessWeights.put("ShotsMissed", 4.0);
-  fitnessWeights.put("FramesTracked", 8.0);
-  fitnessWeights.put("ShotWhileFacing", 10.0);
+  fitnessWeights.put("HitsTaken", -0.8);
+  fitnessWeights.put("ShotsLanded", 1.5);
+  fitnessWeights.put("ShotsAvoided", 1.1);
+  fitnessWeights.put("ShotsMissed", -0.8);
+  fitnessWeights.put("FramesTracked", 0.8);
+  fitnessWeights.put("ShotWhileFacing", 0.6);
 
   surface.setSize(-1, -1);
   makeConfigWindow();
@@ -116,8 +95,8 @@ void breed(){ //This functions breeds a new generation from the current generati
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
   }
-  for(int i = 0; i < 50; ++i){
-    fighters[i].b = toBreed.get(i).b;
+  for(int i = fighters.length-1; i > fighters.length-50; --i){
+    fighters[i].setBrain(toBreed.get(i).getBrain());
   }
   numGens++;
   MUTATION_RATE *=0.96;
