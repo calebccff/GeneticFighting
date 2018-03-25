@@ -15,7 +15,7 @@ class Game{
     String debugText = "";
     debugText += "Fighter "+(f.leftEdge==0?"1":"2")+"\n";
     debugText += "Shoot : "+(f.bullet!=null?"O":"X")+" : "+f.shootCooldown+"\n";
-    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+" : "+f.parent1Fit+" : "+f.parent2Fit+"\n";
+    debugText += "Fit   : "+nfs(f.fitness(), 3, 1)+"\n";
     debugText += "Hits taken : "+f.hitsTaken+"\n";
     debugText += "Shots land : "+f.shotsLanded+"\n";
     debugText += "Shots avoid: "+f.shotsAvoided+"\n";

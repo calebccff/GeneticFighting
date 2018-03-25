@@ -13,7 +13,7 @@ import javax.swing.text.NumberFormatter;
 ConfigWindow config;
 
 public class ConfigWindow extends JFrame {
-  private final int WIDTH = 500; //Set window size, will become dependant on screen size at some point
+  private final int WIDTH = 600; //Set window size, will become dependant on screen size at some point
   private final int HEIGHT = 850;
 
   private JButton buttonRun, buttonExit; //Init all the button and stuff //PANE 0
@@ -46,6 +46,8 @@ public class ConfigWindow extends JFrame {
       public void actionPerformed(ActionEvent e) {
         try {
           GAME_SIZE = Integer.parseInt(textGameSize.getText().replaceAll(",", ""));
+          GAME_SIZE = floor(GAME_SIZE/100)*100<GAME_SIZE_MIN?GAME_SIZE_MIN:floor(GAME_SIZE/100)*100;
+          
         }
         catch(NumberFormatException exc) {
           exc.printStackTrace();
@@ -64,6 +66,7 @@ public class ConfigWindow extends JFrame {
         setVisible(false);
         surface.setLocation(displayWidth-round(displayWidth*0.68), 10); //Reset some properties, unhide the sketch
         surface.setSize(round(displayWidth*0.68), displayHeight-48);
+        threadInit();
         loop(); //Start the animation thread
       }
     }

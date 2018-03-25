@@ -15,8 +15,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
                   seperate from the Fighter*/
 
   Fighter otherfighter;/*A reference to the enemy fighter, would like to remove*/
-  float parent1Fit = 0; /*Some complex unnecessary fitness stuff*/
-  float parent2Fit = 0;
 
   float netOut[] = new float[NUM_OUTPUTS]; /*The outputs of the neural net, need to be global to the class to dsplay them*/
   float[] inputs = new float[NUM_INPUTS]; //Setup the inputs (Same as above)
@@ -58,11 +56,9 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     side(half);
   }
 
-  Fighter(Fighter f1, Fighter f2, int half, int n){ //This means I have parents
-    perlinNoise = n*1000;
-    brain = new Brain(f1.brain, f2.brain); //Just pass it on, some more stuff will happen here (?)
-    parent1Fit = f1.fitness();
-    parent2Fit = f2.fitness();
+  Fighter(Fighter f1, int half, int n){ //This means I have parents
+    perlinNoise = n*10;
+    brain = new Brain(f1.brain); //Just pass it on, some more stuff will happen here (?)
     side(half);
   }
 
@@ -216,12 +212,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
   }
 
-  float piFitness(){
-    return pi(fitness(), parent1Fit, parent2Fit);
-  }
-
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
-    float normalFOV = map(fov, 5, 120, 0, 1); //TODO: Make this adjust the reward for EACH shot
     float myFitness =
     +hitsTaken*(float)fitnessWeights.get("HitsTaken")
     +shotsLanded*(float)fitnessWeights.get("ShotsLanded")

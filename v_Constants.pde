@@ -9,7 +9,7 @@ final int NUM_INPUTS = 5; //Constants which define the neural network
 final int[] NUM_HIDDEN = {7, 7};
 final int NUM_OUTPUTS = 5;
 int IMPROVEMENT_THRESHOLD = 5;
-float MUTATION_RATE = 0.8f;
+float MUTATION_RATE = 0.01f;
 
 /*
 Strings for info boxes and such

@@ -6,7 +6,7 @@ This is a project dedicated to utilising a genetcic algorithm in order to train 
 I WON'T be adding user vs computer functionality but if you feel like forking it and doing that yourself that would be awesome.
 
 When the program starts you get a java JFrame window which (will) contains lots of configuration options in order to easily customise the simulation.
-
+---
 *For Example:*
 
 You can adjust the number of consecutive games (more is generally better but it will run slower).

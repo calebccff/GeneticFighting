@@ -34,29 +34,22 @@ class Brain {
     }
   }
 
-  Brain(Brain b1, Brain b2){ //This is used for evolution, basically creates a new BRAIN from two parents.
-    nodesVisible[0] = new Node[b1.nodesVisible[0].length]; //Set the size of the staggered array, kinda crusty code MIGHTFIX
-    nodesVisible[1] = new Node[b1.nodesVisible[1].length];
-    nodesHidden = new Node[b1.nodesHidden.length][];
+  Brain(Brain b){ //This is used for evolution, basically creates a new BRAIN from two parents.
+    nodesVisible[0] = new Node[b.nodesVisible[0].length]; //Set the size of the staggered array, kinda crusty code MIGHTFIX
+    nodesVisible[1] = new Node[b.nodesVisible[1].length];
+    nodesHidden = new Node[b.nodesHidden.length][];
     for(int i = 0; i < nodesHidden.length; i++){
-      nodesHidden[i] = new Node[b1.nodesHidden[i].length];
-    }
-
-    Brain chosen;
-    if(random(1)<0.5){
-      chosen = b1;
-    }else{
-      chosen = b2;
+      nodesHidden[i] = new Node[b.nodesHidden[i].length];
     }
 
     for(int i = 0; i < nodesVisible.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
       for(int j = 0; j < nodesVisible[i].length; j++){
-        nodesVisible[i][j] = new Node(chosen.nodesVisible[i][j]); //Picks a random parent and uses their genes.
+        nodesVisible[i][j] = new Node(b.nodesVisible[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
     for(int i = 0; i < nodesHidden.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
       for(int j = 0; j < nodesHidden[i].length; j++){
-        nodesHidden[i][j] = new Node(chosen.nodesHidden[i][j]); //Picks a random parent and uses their genes.
+        nodesHidden[i][j] = new Node(b.nodesHidden[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
   }
