@@ -226,11 +226,11 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   /*
   Getters and Setters
   */
-  
+
   Brain getBrain(){
     return this.brain;
   }
-  
+
   void setBrain(Brain brain){
     this.brain = brain;
   }
