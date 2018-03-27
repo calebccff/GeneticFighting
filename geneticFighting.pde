@@ -1,3 +1,9 @@
+/*TODO
+ - Find a good library for doing JFrames and fix that junk
+ - Make a good UI
+ - Clean up the really dodgy stuff
+ - Have red/green be seperate populations that don't interbreed
+*/
 import java.util.Arrays; //Imports the Arrays class, used to convert array to string to create more readable output
 
 HashMap fitnessWeights = new HashMap();
@@ -15,27 +21,28 @@ Game[] games; //A one dimensional array whic stores all the concurrent games
 boolean running = false;
 
 //Threading data
-int quarter = 0; //The size of one quarter of the games
-int[] threadState;
-int threads = 1;
+int THREAD_SECTION_SIZE = 0; //The size of one THREAD_SECTION_SIZE of the games
+int THREAD_COUNT = 4;
+int[] threadState = new int[THREAD_COUNT];
+GameThread[] threads = new GameThread[THREAD_COUNT];
 
 void settings() {
-  size(round(displayWidth*0.68), displayHeight-48, FX2D); //Makes the window invisible, untested on other platforms
+  size(round(displayWidth*0.68), displayHeight-48); //Makes the window invisible, untested on other platforms
 }
 
 void setup() { //Called ONCE at the beggining of runtime
-  frameRate(600); //Set the framelimit, hehe
+  frameRate(60); //Set the framelimit, hehe
   //randomSeed(4); //FOR DEBUGGING
 
   arena = createGraphics(round(height*0.8), round(height*0.8)); //Make the arena canvas
 
   imageMode(CENTER); //Define how images and rectangles are drawn to the screen
-  rectMode(CENTER);
+  rectMode(CENTER);  //This means their x/y coords refer to the center of the object
 
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26); //Initialise the text, monospaced makes text much more readable
   textFont(mono);
-  textSize(height*0.02);
+  textSize(height*0.02); //This might need tweaking
 
   //Init fitness weights
   fitnessWeights.put("HitsTaken", -0.8);
@@ -51,23 +58,20 @@ void setup() { //Called ONCE at the beggining of runtime
 }
 
 void threadInit() {
-  println("Called!");
-  threads = 4; //Every modern PC has at least 4 logical threads, and making this adaptive would be out of the scope of this program.
-  threadState = new int[threads];
-  quarter = GAME_SIZE/threads;
-  println(quarter);
+  THREAD_SECTION_SIZE = GAME_SIZE/THREAD_COUNT;
+  for(int i = 0; i < THREAD_COUNT; i++){
+    threads[i] = new GameThread(i);
+    threadState[i] = 0;
+  }
 }
 
 void draw() { //Called 60 (ish) times per second
   background(50); //That space grey
   if (running) {
-    for (int i = 0; i < threads; i++) {
+    for (int i = 0; i < THREAD_COUNT; i++) {
       //println("Starting thread"+i);
-      if (threadState[i] == 0) {
-        //println("Didn't start thread"+i);
-        threadState[i] = 1;
-        thread("thread"+i);
-      }
+      threads[i].start();
+      threadState[i] = 0;
     }
     //for(Game g : games){
     //  g.run();
@@ -106,7 +110,7 @@ void draw() { //Called 60 (ish) times per second
 void breed() { //This functions breeds a new generation from the current generation
   ArrayList<Fighter> toBreed = new ArrayList<Fighter>();
   for (int i = 0; i < GAME_SIZE*2; i++) {
-    for (int j = 0; j < ceil(fighters[i].fitness()/10); ++j) {
+    for (int j = 0; j < ceil(fighters[i].fitness()); ++j) {
       toBreed.add(fighters[i]);
     }
   }
@@ -117,45 +121,8 @@ void breed() { //This functions breeds a new generation from the current generat
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
   }
   numGens++;
-  MUTATION_RATE *=0.96;
-  MUTATION_RATE = constrain(MUTATION_RATE, 0.005, 1);
-}
-
-void thread0() {
-  int index = 0;
-  Game[] toRun = Arrays.copyOfRange(games, quarter*index, quarter*(index+1));
-  for (Game g : toRun) {
-    g.run();
-  }
-  println("Thread "+str(index)+" has finished");
-  threadState[index] = 0;
-}
-void thread1() {
-  int index = 1;
-  Game[] toRun = Arrays.copyOfRange(games, quarter*index, quarter*(index+1));
-  for (Game g : toRun) {
-    g.run();
-  }
-  println("Thread "+str(index)+" has finished");
-  threadState[index] = 0;
-}
-void thread2() {
-  int index = 2;
-  Game[] toRun = Arrays.copyOfRange(games, quarter*index, quarter*(index+1));
-  for (Game g : toRun) {
-    g.run();
-  }
-  println("Thread "+str(index)+" has finished");
-  threadState[index] = 0;
-}
-void thread3() {
-  int index = 3;
-  Game[] toRun = Arrays.copyOfRange(games, quarter*index, quarter*(index+1));
-  for (Game g : toRun) {
-    g.run();
-  }
-  println("Thread "+str(index)+" has finished");
-  threadState[index] = 0;
+  MUTATION_RATE *=0.95;
+  MUTATION_RATE = constrain(MUTATION_RATE, 0.003, 1);
 }
 
 void drawStage() {
