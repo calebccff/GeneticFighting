@@ -23,17 +23,17 @@ class Game{
     debugText += "Frames Trac: "+f.framesTracked+"\n";
     debugText += "Shots Face : "+f.shotWhileFacing+"\n";
     debugText += "FOV   : "+f.fov+"\n";
-    // debugText += "Input : \n";
-    // debugText += "SO  , SOB , FOV , DIST, NOISE\n";
-    // for(int i = 0; i < f.inputs.length; i++){
-    //   debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
-    // }
-    // debugText += "\n\n";
-    // debugText += "Output: \n";
-    // debugText += "W   , A   , D   , SHO , FOV\n";
-    // for(int i = 0; i < f.netOut.length; i++){
-    //   debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
-    // }
+    debugText += "Input : \n";
+    debugText += "SO  , SOB , DIST, NOISE\n";
+    for(int i = 0; i < f.inputs.length; i++){
+      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
+    }
+    debugText += "\n\n";
+    debugText += "Output: \n";
+    debugText += "W   , A   , D   , SHO , FOV\n";
+    for(int i = 0; i < f.netOut.length; i++){
+      debugText += nf(f.netOut[i], 1, 2)+(i==f.netOut.length-1?"":", ");
+    }
     debugText += "\n";
 
     debugText += "\n";
@@ -52,6 +52,6 @@ class Game{
       f.display();
       debuggingInfo += debug(f);
     }
-    text(debuggingInfo, height*0.02, height*0.2);
+    text(debuggingInfo, height*0.02, height*0.15);
   }
 }

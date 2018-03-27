@@ -34,7 +34,7 @@ class Brain {
     }
   }
 
-  Brain(Brain b){ //This is used for evolution, basically creates a new BRAIN from two parents.
+  Brain(Brain b){ //This is used for evolution, basically creates a new BRAIN from one parent
     nodesVisible[0] = new Node[b.nodesVisible[0].length]; //Set the size of the staggered array, kinda crusty code MIGHTFIX
     nodesVisible[1] = new Node[b.nodesVisible[1].length];
     nodesHidden = new Node[b.nodesHidden.length][];
@@ -108,7 +108,7 @@ class Brain {
       }
       //value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
     }
-    
+
     float getValue(){
       return value;
     }

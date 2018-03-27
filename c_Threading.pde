@@ -8,13 +8,12 @@ class GameThread extends Thread {
 
   public void run() {
     //Do the code here
-    for (int i = 0; i < 100; i++) {
-      Game[] toRun = Arrays.copyOfRange(games, quarter*index, quarter*(index+1));
+    for (int i = 0; i < 10; i++) {
+      Game[] toRun = Arrays.copyOfRange(games, THREAD_SECTION_SIZE*index, THREAD_SECTION_SIZE*(index+1));
       for (Game g : toRun) {
         g.run();
       }
     }
-  threadState[index] = 1;
   t = null;
 }
 

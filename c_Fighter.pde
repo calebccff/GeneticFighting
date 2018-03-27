@@ -1,5 +1,6 @@
 class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   int SHOOT_COOLDOWN_LENGTH = 40;
+  int FOV_MIN = 3, FOV_MAX = 120;
 
   PVector pos, oldPos, vel = new PVector(0, 0); //Has a position and velocity
   color myfill; //Some dodgy stuff to make the two fighters different colours
@@ -17,7 +18,12 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   Fighter otherfighter;/*A reference to the enemy fighter, would like to remove*/
 
   float netOut[] = new float[NUM_OUTPUTS]; /*The outputs of the neural net, need to be global to the class to dsplay them*/
-  float[] inputs = new float[NUM_INPUTS]; //Setup the inputs (Same as above)
+  float[] inputs = new float[NUM_INPUTS]; /*Setup the inputs (Same as above)
+  0 - Can see other fighter?
+  1 - Can see other fighter's bullet?
+  3 - Distance from me to enemy
+  4 - Perlin noise, this is used as a tick, to encourage some random thoughts and stop them getting stuck
+  */
   float dir = 0;//, oldDir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazy to learn how they work.
   float fov = 20f; //The Field of View, ie how wide their eyesight is.
   float speed = 0; /*The speed of the Fighter*/
@@ -93,7 +99,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     inputs[0] = withinFOV<fov/2?1:0;
     framesTracked += inputs[0];
-    framesTracked *= map(fov, 5, 120, 1, 0);
+    framesTracked *= map(fov, FOV_MIN, FOV_MAX, 1, 0);
 
     //Now the same for the bullets
     try{
@@ -105,15 +111,17 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
         withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
       }
     }catch(NullPointerException e){
-      inputs[1] = 0.0;
+      inputs[1] = 0.0f;
     }
 
     inputs[1] = withinFOV<fov/2?1:0;
-
-    //And finally, the size of my fov
-    inputs[2] = map(fov, 10, 120, 1, 0);
-    inputs[3] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0);
-    inputs[4] = map(noise((frameCount+perlinNoise)*0.006), 0.15, 0.85, 0, 1);
+    inputs[2] = map(dist(pos.x, pos.y, otherfighter.pos.x, otherfighter.pos.y), 0, dist(0, 0, arena.width, arena.height), 1, 0); //Distnce between the two fighters
+    try{
+    inputs[3] = map(noise((frameCount+perlinNoise)*0.006), 0.15, 0.85, 0, 1);
+    }catch(ArithmeticException e){
+      e.printStackTrace();
+      inputs[3] = random(1);
+    }
     vel = tempVel.copy();
     float[] actions = brain.propForward(inputs); //Get the output of my BRAIN
     netOut = actions;
@@ -124,7 +132,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     //Update my fov
     fov += map(actions[4], 0, 1, -5, 5);
-    fov = constrain(fov, 5, 120);
+    fov = constrain(fov, FOV_MIN, FOV_MAX);
 
     speed = map(forward, 0, 1, 0, 8); //Forward speed
     if(abs(speed) < 2){
@@ -150,10 +158,10 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Shooting
     if(shoot > 0.5 && shootCooldown == 0 && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
-      shotWhileFacing += inputs[0]*map(fov, 5, 120, 1, 0);
+      shotWhileFacing += inputs[0]*map(fov, FOV_MIN, FOV_MAX, 1, 0);
     }
-    if(bullet != null && bullet.exists){
-      bullet.run();
+    if(bullet != null && !bullet.run()){
+      bullet = null;
     }
 
 
@@ -180,9 +188,9 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   }
 
   void display(){ //Draw those curves!
-    arena.fill(myfill); //RAINBOWS
+    arena.fill(myfill); //Set the fill colour to whatever colour this fighter is
 
-    arena.ellipse(pos.x, pos.y, 20, 20); //CURVY
+    arena.ellipse(pos.x, pos.y, 20, 20); //Draw the fighter
 
     //Draw the pointer
     PVector l = vel; //Some funky stuff for drawing a line from a direction
@@ -204,15 +212,16 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     }
 
     if(bullet != null){ //Draw the bullet
-      if(!bullet.exists){
-        bullet = null;
-      }else{
-        bullet.drawBullet();
-      }
+      bullet.drawBullet();
     }
   }
 
+  public boolean red(){ //Returns true if this fighter is a red one
+    return leftEdge==0;
+  }
+
   float fitness(){ //More baseline stuff to be implemented later, affects how likely I am to breed to the new generation.
+    float thisAlgorithmBecomingSkynetCost = 9999999;
     float myFitness =
     +hitsTaken*(float)fitnessWeights.get("HitsTaken")
     +shotsLanded*(float)fitnessWeights.get("ShotsLanded")
@@ -236,33 +245,31 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   }
 
   class Bullet{
-    PVector bulletPos, bulletVel;
-    boolean exists = true;
+    PVector bulletPos, bulletVel, distanceTravelled;
     Fighter target;
 
     Bullet(PVector pos, float ang, Fighter f){
       this.bulletPos = pos.copy();
+      this.distanceTravelled = pos.copy();
       this.bulletVel = PVector.fromAngle(radians(ang+random(-fov/2, fov/2)));
-      this.bulletVel.mult(10);
+      this.bulletVel.mult(15);
 
       target = f;
     }
 
-    int run(){
+    boolean run(){
       if(bulletPos.x < 0 || bulletPos.x > arena.width || bulletPos.y < -2 || bulletPos.y > arena.height){
-        exists = false;
-        shotsMissed += map(fov, 5, 120, 0.2, 1);
+        shotsMissed += map(fov, FOV_MAX, FOV_MIN, 0.2, 1);
         shootCooldown = SHOOT_COOLDOWN_LENGTH;
-        return -1;
+        return false;
       }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 18){
-        exists = false;
         target.hitsTaken++;
-        shotsLanded += map(fov, 5, 120, 1, 0);
+        shotsLanded += map(dist(bulletPos.x, bulletPos.y, distanceTravelled.x, distanceTravelled.y), 5, dist(0, 0, arena.width, arena.height), 0, 1.5);
         shootCooldown = SHOOT_COOLDOWN_LENGTH;
-        return -1;
+        return false;
       }
       bulletPos.add(bulletVel);
-      return 1;
+      return true;
     }
 
     void drawBullet(){

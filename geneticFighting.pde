@@ -2,7 +2,18 @@
  - Find a good library for doing JFrames and fix that junk
  - Make a good UI
  - Clean up the really dodgy stuff
- - Have red/green be seperate populations that don't interbreed
+ - Have red/green be seperate populations that don't interbreed (much?)
+ - Customise fitness for each population. Different species have different goals.
+ - Option to remove barrier
+ - Track fighter fitness over time, record fitnesses at the end of each generation as a CSV
+*/
+/*REPORT stuff
+Testing:
+Bad breed function
+Two seperate populations
+Glitch with swing inserting comma to inbox box
+
+
 */
 import java.util.Arrays; //Imports the Arrays class, used to convert array to string to create more readable output
 
@@ -16,25 +27,23 @@ int numGens = 0; //Counts the number of generations that have happened since the
 PGraphics arena; //This allows all the games to be drawn to a seperate canvas, avoids having to do lots of complex maths to display debug info
 
 Fighter[] fighters; //A one dimensional array which stores ALL of the fighters
-Game[] games; //A one dimensional array whic stores all the concurrent games
-
+Game[] games; /*A one dimensional array which stores all the games
+This is used so that the program can easily become multithreaded as wrapping up
+all of the interactions that occur between two fighters in one class makes it
+easy to run independantly of the main thread.
+*/
 boolean running = false;
 
-//Threading data
-int THREAD_SECTION_SIZE = 0; //The size of one THREAD_SECTION_SIZE of the games
-int THREAD_COUNT = 4;
-int[] threadState = new int[THREAD_COUNT];
-GameThread[] threads = new GameThread[THREAD_COUNT];
-
 void settings() {
-  size(round(displayWidth*0.68), displayHeight-48); //Makes the window invisible, untested on other platforms
+  size(displayWidth, displayHeight); //Makes the window invisible, untested on other platforms
 }
 
 void setup() { //Called ONCE at the beggining of runtime
-  frameRate(60); //Set the framelimit, hehe
+  frameRate(60); //Set the framelimit
   //randomSeed(4); //FOR DEBUGGING
 
-  arena = createGraphics(round(height*0.8), round(height*0.8)); //Make the arena canvas
+  arena = createGraphics(850, 850); //Make the arena canvas
+  noSmooth();
 
   imageMode(CENTER); //Define how images and rectangles are drawn to the screen
   rectMode(CENTER);  //This means their x/y coords refer to the center of the object
@@ -42,26 +51,25 @@ void setup() { //Called ONCE at the beggining of runtime
   //Set font
   PFont mono = createFont("UbuntuMono.ttf", 26); //Initialise the text, monospaced makes text much more readable
   textFont(mono);
-  textSize(height*0.02); //This might need tweaking
+  textSize(height*0.018); //This might need tweaking
 
   //Init fitness weights
-  fitnessWeights.put("HitsTaken", -0.8);
+  fitnessWeights.put("HitsTaken", -1.5);
   fitnessWeights.put("ShotsLanded", 1.5);
   fitnessWeights.put("ShotsAvoided", 1.1);
   fitnessWeights.put("ShotsMissed", -0.8);
   fitnessWeights.put("FramesTracked", 0.8);
   fitnessWeights.put("ShotWhileFacing", 0.6);
 
-  surface.setSize(-1, -1);
-  makeConfigWindow();
-  noLoop();
+  surface.setSize(-1, -1); //Some glitchy stuff to "hide" the main window until you hit run
+  makeConfigWindow(); //Sets up the config window
+  noLoop(); //This still calls draw for one frame, which means all of the debug text gets written the the screen
 }
 
-void threadInit() {
+void threadInit() { //Configure the variabls for multithreading
   THREAD_SECTION_SIZE = GAME_SIZE/THREAD_COUNT;
   for(int i = 0; i < THREAD_COUNT; i++){
     threads[i] = new GameThread(i);
-    threadState[i] = 0;
   }
 }
 
@@ -71,7 +79,6 @@ void draw() { //Called 60 (ish) times per second
     for (int i = 0; i < THREAD_COUNT; i++) {
       //println("Starting thread"+i);
       threads[i].start();
-      threadState[i] = 0;
     }
     //for(Game g : games){
     //  g.run();
@@ -88,11 +95,13 @@ void draw() { //Called 60 (ish) times per second
   }
   drawStage();
 
-  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1)+"\n"+"Gen: "+numGens+" - TS: "+showFittest+" / "+timeShown+"\n"+"MUT: "+nf(MUTATION_RATE, 1, 3), height*0.02, height*0.04);
+  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1)
+    +"\nGEN   : "+numGens
+    +"\nMTR   : "+nf(MUTATION_RATE, 1, 3), height*0.02, height*0.04);
   if (frameCount%GAME_TIME == 0) {
     breed();
   }
-  if (showFittest && timeShown > 60) {
+  if (showFittest && timeShown > 300) {
     float bestFitness = 0;
     for (int i = 0; i < GAME_SIZE*2; ++i) {
       float fitness = fighters[i].fitness();
@@ -108,15 +117,19 @@ void draw() { //Called 60 (ish) times per second
 }
 
 void breed() { //This functions breeds a new generation from the current generation
-  ArrayList<Fighter> toBreed = new ArrayList<Fighter>();
+  ArrayList<Fighter> toBreedRED = new ArrayList<Fighter>();
+  ArrayList<Fighter> toBreedGRE = new ArrayList<Fighter>();
   for (int i = 0; i < GAME_SIZE*2; i++) {
-    for (int j = 0; j < ceil(fighters[i].fitness()); ++j) {
-      toBreed.add(fighters[i]);
+    for (int j = 0; j < ceil(fighters[i].fitness())&&fighters[i].red(); ++j) {
+      toBreedRED.add(fighters[i]);
+    }
+    for (int j = 0; j < ceil(fighters[i].fitness())&&!fighters[i].red(); ++j) {
+      toBreedGRE.add(fighters[i]);
     }
   }
   for (int i = 0; i < GAME_SIZE; ++i) {
-    fighters[i*2] = new Fighter(toBreed.get(floor(random(toBreed.size()))), LEFT, round(i*2+random(10000)));
-    fighters[i*2+1] = new Fighter(toBreed.get(floor(random(toBreed.size()))), RIGHT, round(i*2+random(10000)));
+    fighters[i*2] = new Fighter(toBreedRED.get(floor(random(toBreedRED.size()))), LEFT, round(i*2+random(10000)));
+    fighters[i*2+1] = new Fighter(toBreedGRE.get(floor(random(toBreedGRE.size()))), RIGHT, round(i*2+random(10000)));
 
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
   }
@@ -126,16 +139,12 @@ void breed() { //This functions breeds a new generation from the current generat
 }
 
 void drawStage() {
-  image(arena, width*0.7-height*0.05, height*0.5); //Draw the arena to the screen
-  strokeWeight(5); //Even thicker lines
-  stroke(50);
-  noFill();
-  rect(width*0.7-height*0.05, height*0.5, arena.width+6, arena.height+6, 20); //Curvey arena
+  image(arena, height*1.25, height*0.5); //Draw the arena to the screen
   strokeWeight(2);
 }
 
 void renderStage() { //Draws the arena
-  arena.background(200); //WHITE(ISH)
+  arena.background(250); //WHITE(ISH)
   arena.strokeWeight(4); //THICC lines
 
   arena.line(arena.width*0.5, 0, arena.width*0.5, arena.height); //Line down the middle

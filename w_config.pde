@@ -22,7 +22,7 @@ public class ConfigWindow extends JFrame {
   private NumberFormat format = NumberFormat.getInstance();
   private NumberFormatter formatter = new NumberFormatter(format);
   private JLabel labelGameSize;
-  
+
   private JLabel labelBreedInfo;
 
   public ConfigWindow() { //The constructer, initialises the window
@@ -47,7 +47,7 @@ public class ConfigWindow extends JFrame {
         try {
           GAME_SIZE = Integer.parseInt(textGameSize.getText().replaceAll(",", ""));
           GAME_SIZE = floor(GAME_SIZE/100)*100<GAME_SIZE_MIN?GAME_SIZE_MIN:floor(GAME_SIZE/100)*100;
-          
+
         }
         catch(NumberFormatException exc) {
           exc.printStackTrace();
@@ -65,7 +65,7 @@ public class ConfigWindow extends JFrame {
         running = true; //legacy
         setVisible(false);
         surface.setLocation(displayWidth-round(displayWidth*0.68), 10); //Reset some properties, unhide the sketch
-        surface.setSize(round(displayWidth*0.68), displayHeight-48);
+        surface.setSize(displayWidth, displayHeight);
         threadInit();
         loop(); //Start the animation thread
       }
@@ -100,22 +100,22 @@ public class ConfigWindow extends JFrame {
     textGameSize.setAlignmentX(Component.CENTER_ALIGNMENT);
     panes[1].add(textGameSize); //Add the slider to the first pane
     panes[1].add(Box.createRigidArea(new Dimension(200, 0)));
-  
-  
+
+
     //PANE 2
     labelBreedInfo = new JLabel();
     labelBreedInfo.setText(stringBreedInfo);
-    
-    
+
+
     panes[2].add(labelBreedInfo);
-  
+
     for (int i = 0; i < panes.length; i++) { //Add all the horizontal panes to the vertical pane
       contentPane.add(panes[i]);
     }
     contentPane.add(Box.createRigidArea(new Dimension(0, 20000)));
   }
-  
-  
+
+
 
   private class ButtonHandler implements ActionListener { //To be overwritten
     public void actionPerformed(ActionEvent e) {
