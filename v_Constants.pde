@@ -1,3 +1,5 @@
+String SIM_ID = str(int(random(1000, 10000)));
+
 int GAME_SIZE = 800; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
 final int GAME_SIZE_MIN = 100;
 final int GAME_SIZE_MAX = 10000;

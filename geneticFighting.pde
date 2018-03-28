@@ -1,23 +1,13 @@
 import g4p_controls.*;
 
-/*TODO
- - Find a good library for doing JFrames and fix that junk
- - Make a good UI
- - Clean up the really dodgy stuff
- - Have red/green be seperate populations that don't interbreed (much?)
- - Customise fitness for each population. Different species have different goals.
- - Option to remove barrier
- - Track fighter fitness over time, record fitnesses at the end of each generation as a CSV
- - Adjust inputs... Should they know the relative direction of the other fighter/bullet? (0.5:straight on, 0.0:left edge, 1.0:right edge), descrete vs continuous
- - FOV Fixes: Make speed proportional to FOV, so move faster when bigger
- */
+/*TODO - See trello*/
 /*REPORT stuff
  Testing:
  Bad breed function
  Two seperate populations
  Glitch with swing inserting comma to inbox box
  Adjusted breeding, added mutation amount. Only some synapses become mutated, rather than every synapse being mutated. Mutation is a modifacation to the synapse not a replacement
- 
+
  */
 import java.util.Arrays; //Imports the Arrays class, used to convert array to string to create more readable output
 
@@ -40,6 +30,14 @@ int state = 0; /*Program state..
  0 - Main menu
  1 - Running simulation
  */
+
+ArrayList<String> fitnessValues = new ArrayList<String>();
+/*A string array of the average fitness of each population over each generation, this is written to a file.
+Example:
+generation,Red,Green [0]
+0,3.2,4.3            [1]
+1,4.3,6.2            [2]
+*/
 
 void settings() {
   fullScreen(); //Makes the window invisible, untested on other platforms
@@ -67,6 +65,9 @@ void setup() { //Called ONCE at the beggining of runtime
   fitnessWeights.put("ShotsMissed", -0.8);
   fitnessWeights.put("FramesTracked", 0.8);
   fitnessWeights.put("ShotWhileFacing", 0.6);
+
+  //Setup the fitness data store
+  fitnessValues.add("Generation,Red,Green");
 
   //surface.setSize(-1, -1); //Some glitchy stuff to "hide" the main window until you hit run
   //makeConfigWindow(); //Sets up the config window
@@ -109,9 +110,11 @@ void draw() { //Called 60 (ish) times per second
 
     drawStage(); //Draw the arena to the canvas
 
-    text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1) //Some debugging text
-      +"\nGEN   : "+numGens
-      +"\nMTR   : "+nf(MUTATION_RATE, 1, 3), height*0.02, height*0.04);
+    text("SimID   : "+SIM_ID
+        +"\nGame  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1) //Some debugging text
+        +"\nGEN   : "+numGens
+        +"\nMTR   : "+nf(MUTATION_RATE, 1, 3)
+        , height*0.02, height*0.02);
     if (frameCount%GAME_TIME == 0) { //Calls breed every <GAME_TIME> frames
       breed();
     }
@@ -132,7 +135,25 @@ void draw() { //Called 60 (ish) times per second
   }
 }
 
+void saveData(){
+  String data = str(numGens)+",";
+  float avgRed = 0, avgGre = 0;
+  for(int i = 0; i < GAME_SIZE*2; i++){
+    if(fighters[i].red()){
+      avgRed+=fighters[i].fitness();
+    }else{
+      avgGre+=fighters[i].fitness();
+    }
+  }
+  avgRed/=(GAME_SIZE*2);
+  avgGre/=(GAME_SIZE*2);
+  data += str(avgRed)+","+str(avgGre);
+  fitnessValues.add(data);
+  saveStrings("output/Simulation_"+SIM_ID+".csv", fitnessValues.toArray(new String[fitnessValues.size()]));
+}
+
 void breed() { //This functions breeds a new generation from the current generation
+  saveData();
   ArrayList<Fighter> toBreedRED = new ArrayList<Fighter>();
   ArrayList<Fighter> toBreedGRE = new ArrayList<Fighter>();
   for (int i = 0; i < GAME_SIZE*2; i++) {
