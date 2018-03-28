@@ -62,7 +62,7 @@ public class ConfigWindow extends JFrame {
 
           games[i] = new Game(fighters[i*2], fighters[i*2+1]); //Creates a new game and passes REFERENCES to two fighters, allows the game AND main program to handle the fighters
         }
-        running = true; //legacy
+        //running = true; //legacy
         setVisible(false);
         surface.setLocation(displayWidth-round(displayWidth*0.68), 10); //Reset some properties, unhide the sketch
         surface.setSize(displayWidth, displayHeight);

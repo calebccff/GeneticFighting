@@ -264,7 +264,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
         return false;
       }else if(dist(bulletPos.x, bulletPos.y, target.pos.x, target.pos.y) < 18){
         target.hitsTaken++;
-        shotsLanded += map(dist(bulletPos.x, bulletPos.y, distanceTravelled.x, distanceTravelled.y), 5, dist(0, 0, arena.width, arena.height), 0, 1.5);
+        shotsLanded += map(dist(bulletPos.x, bulletPos.y, distanceTravelled.x, distanceTravelled.y), 5, dist(0, 0, arena.width, arena.height), 0, 1);
         shootCooldown = SHOOT_COOLDOWN_LENGTH;
         return false;
       }

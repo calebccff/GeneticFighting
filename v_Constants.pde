@@ -1,4 +1,4 @@
-int GAME_SIZE = 1; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
+int GAME_SIZE = 800; //Initialises constants, these are unchangeable in the program, making use of them allows for more efficient execution
 final int GAME_SIZE_MIN = 100;
 final int GAME_SIZE_MAX = 10000;
 
@@ -11,6 +11,7 @@ final int[] NUM_HIDDEN = {7, 7};
 final int NUM_OUTPUTS = 5;
 int IMPROVEMENT_THRESHOLD = 5;
 float MUTATION_RATE = 0.02f;
+float MUTATION_AMT = 0.3;
 
 //Threading data
 int THREAD_SECTION_SIZE = 0; //The size of one THREAD_SECTION_SIZE of the games

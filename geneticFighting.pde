@@ -1,3 +1,5 @@
+import g4p_controls.*;
+
 /*TODO
  - Find a good library for doing JFrames and fix that junk
  - Make a good UI
@@ -6,15 +8,17 @@
  - Customise fitness for each population. Different species have different goals.
  - Option to remove barrier
  - Track fighter fitness over time, record fitnesses at the end of each generation as a CSV
-*/
+ - Adjust inputs... Should they know the relative direction of the other fighter/bullet? (0.5:straight on, 0.0:left edge, 1.0:right edge), descrete vs continuous
+ - FOV Fixes: Make speed proportional to FOV, so move faster when bigger
+ */
 /*REPORT stuff
-Testing:
-Bad breed function
-Two seperate populations
-Glitch with swing inserting comma to inbox box
-
-
-*/
+ Testing:
+ Bad breed function
+ Two seperate populations
+ Glitch with swing inserting comma to inbox box
+ Adjusted breeding, added mutation amount. Only some synapses become mutated, rather than every synapse being mutated. Mutation is a modifacation to the synapse not a replacement
+ 
+ */
 import java.util.Arrays; //Imports the Arrays class, used to convert array to string to create more readable output
 
 HashMap fitnessWeights = new HashMap();
@@ -28,14 +32,17 @@ PGraphics arena; //This allows all the games to be drawn to a seperate canvas, a
 
 Fighter[] fighters; //A one dimensional array which stores ALL of the fighters
 Game[] games; /*A one dimensional array which stores all the games
-This is used so that the program can easily become multithreaded as wrapping up
-all of the interactions that occur between two fighters in one class makes it
-easy to run independantly of the main thread.
-*/
-boolean running = false;
+ This is used so that the program can easily become multithreaded as wrapping up
+ all of the interactions that occur between two fighters in one class makes it
+ easy to run independantly of the main thread.
+ */
+int state = 0; /*Program state..
+ 0 - Main menu
+ 1 - Running simulation
+ */
 
 void settings() {
-  size(displayWidth, displayHeight); //Makes the window invisible, untested on other platforms
+  fullScreen(); //Makes the window invisible, untested on other platforms
 }
 
 void setup() { //Called ONCE at the beggining of runtime
@@ -61,21 +68,28 @@ void setup() { //Called ONCE at the beggining of runtime
   fitnessWeights.put("FramesTracked", 0.8);
   fitnessWeights.put("ShotWhileFacing", 0.6);
 
-  surface.setSize(-1, -1); //Some glitchy stuff to "hide" the main window until you hit run
-  makeConfigWindow(); //Sets up the config window
-  noLoop(); //This still calls draw for one frame, which means all of the debug text gets written the the screen
+  //surface.setSize(-1, -1); //Some glitchy stuff to "hide" the main window until you hit run
+  //makeConfigWindow(); //Sets up the config window
+  //noLoop(); //This still calls draw for one frame, which means all of the debug text gets written to the screen
+  surface.setLocation(10, 10);
+  surface.setSize(int(displayWidth*0.45), int(displayHeight-50));
+  createGUI();
 }
 
 void threadInit() { //Configure the variabls for multithreading
   THREAD_SECTION_SIZE = GAME_SIZE/THREAD_COUNT;
-  for(int i = 0; i < THREAD_COUNT; i++){
+  for (int i = 0; i < THREAD_COUNT; i++) {
     threads[i] = new GameThread(i);
   }
 }
 
 void draw() { //Called 60 (ish) times per second
-  background(50); //That space grey
-  if (running) {
+  switch (state) {
+  case 0:
+    background(230);
+    break;
+  case 1:
+    background(50); //That space grey
     for (int i = 0; i < THREAD_COUNT; i++) {
       //println("Starting thread"+i);
       threads[i].start();
@@ -90,30 +104,32 @@ void draw() { //Called 60 (ish) times per second
     // for(Game g : games){
     //   g.display();
     // }
-    games[currentGame].display();
+    games[currentGame].display(); //Draw the currently displayed game to the PGraphic
     arena.endDraw(); //Stop drawing
-  }
-  drawStage();
 
-  text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1)
-    +"\nGEN   : "+numGens
-    +"\nMTR   : "+nf(MUTATION_RATE, 1, 3), height*0.02, height*0.04);
-  if (frameCount%GAME_TIME == 0) {
-    breed();
-  }
-  if (showFittest && timeShown > 300) {
-    float bestFitness = 0;
-    for (int i = 0; i < GAME_SIZE*2; ++i) {
-      float fitness = fighters[i].fitness();
-      if (fitness > bestFitness) {
-        bestFitness = fitness;
-        currentGame = floor(i/2);
-        timeShown = 0;
+    drawStage(); //Draw the arena to the canvas
+
+    text("Game  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1) //Some debugging text
+      +"\nGEN   : "+numGens
+      +"\nMTR   : "+nf(MUTATION_RATE, 1, 3), height*0.02, height*0.04);
+    if (frameCount%GAME_TIME == 0) { //Calls breed every <GAME_TIME> frames
+      breed();
+    }
+    if (showFittest && timeShown > 300) { //Every 300 frames update the game to be shown
+      float bestFitness = 0;
+      for (int i = 0; i < GAME_SIZE*2; ++i) {
+        float fitness = fighters[i].fitness();
+        if (fitness > bestFitness) {
+          bestFitness = fitness;
+          currentGame = floor(i/2);
+          timeShown = 0;
+        }
       }
     }
-  }
 
-  timeShown++;
+    timeShown++;
+    break;
+  }
 }
 
 void breed() { //This functions breeds a new generation from the current generation
@@ -134,12 +150,12 @@ void breed() { //This functions breeds a new generation from the current generat
     games[i] = new Game(fighters[i*2], fighters[i*2+1]);
   }
   numGens++;
-  MUTATION_RATE *=0.95;
-  MUTATION_RATE = constrain(MUTATION_RATE, 0.003, 1);
+  MUTATION_RATE *=0.98;
+  MUTATION_RATE = constrain(MUTATION_RATE, 0.003, 0.1);
 }
 
 void drawStage() {
-  image(arena, height*1.25, height*0.5); //Draw the arena to the screen
+  image(arena, height*1, height*0.5); //Draw the arena to the screen
   strokeWeight(2);
 }
 

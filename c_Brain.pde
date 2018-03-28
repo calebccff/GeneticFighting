@@ -97,7 +97,11 @@ class Brain {
     Node(Node parent){ //Takes a random parent Node (see above)
       synapse = new float[parent.synapse.length];
       for(int i = 0; i < synapse.length; ++i){ //For each synapse
-        synapse[i] = parent.getSynapse(i)*random(1-MUTATION_RATE, 1+MUTATION_RATE);
+      if(random(1) < MUTATION_RATE){
+        synapse[i] = parent.getSynapse(i)*random(1-MUTATION_AMT, 1+MUTATION_AMT);
+      }else{
+        synapse[i] = parent.getSynapse(i);
+      }
       }
     }
 

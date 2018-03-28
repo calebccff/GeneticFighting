@@ -14,7 +14,7 @@ void keyReleased(){
     showFittest = !showFittest;
   }
   if(keyCode == ESC){
-    config.dispose();
+    //config.dispose();
     System.exit(0);
   }
 }
