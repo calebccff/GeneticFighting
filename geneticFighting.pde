@@ -13,6 +13,7 @@ import java.util.Arrays; //Imports the Arrays class, used to convert array to st
 
 HashMap fitnessWeights = new HashMap();
 
+
 boolean showFittest = true; //This defines weather or not to show the fittest game or allow user control
 int timeShown = 0; //The number of frames you've been watching one game
 
@@ -33,14 +34,14 @@ int state = 0; /*Program state..
 
 ArrayList<String> fitnessValues = new ArrayList<String>();
 /*A string array of the average fitness of each population over each generation, this is written to a file.
-Example:
-generation,Red,Green [0]
-0,3.2,4.3            [1]
-1,4.3,6.2            [2]
-*/
+ Example:
+ generation,Red,Green [0]
+ 0,3.2,4.3            [1]
+ 1,4.3,6.2            [2]
+ */
 
 void settings() {
-  fullScreen(); //Makes the window invisible, untested on other platforms
+  fullScreen(FX2D); //Makes the window invisible, untested on other platforms
 }
 
 void setup() { //Called ONCE at the beggining of runtime
@@ -59,12 +60,13 @@ void setup() { //Called ONCE at the beggining of runtime
   textSize(height*0.018); //This might need tweaking
 
   //Init fitness weights
-  fitnessWeights.put("HitsTaken", -1.5);
-  fitnessWeights.put("ShotsLanded", 1.5);
-  fitnessWeights.put("ShotsAvoided", 1.1);
-  fitnessWeights.put("ShotsMissed", -0.8);
-  fitnessWeights.put("FramesTracked", 0.8);
-  fitnessWeights.put("ShotWhileFacing", 0.6);
+  fitnessWeights.put("HitsTaken",       -15f);
+  fitnessWeights.put("ShotsLanded",      15f);
+  fitnessWeights.put("ShotsAvoided",     13f);
+  fitnessWeights.put("ShotsMissed",      -8f);
+  fitnessWeights.put("FramesTracked",     8f);
+  fitnessWeights.put("CloseHits",        10f);
+  fitnessWeights.put("ShotsFired",        3f);
 
   //Setup the fitness data store
   fitnessValues.add("Generation,Red,Green");
@@ -72,7 +74,6 @@ void setup() { //Called ONCE at the beggining of runtime
   //surface.setSize(-1, -1); //Some glitchy stuff to "hide" the main window until you hit run
   //makeConfigWindow(); //Sets up the config window
   //noLoop(); //This still calls draw for one frame, which means all of the debug text gets written to the screen
-  surface.setLocation(10, 10);
   surface.setSize(int(displayWidth*0.45), int(displayHeight-50));
   createGUI();
 }
@@ -111,10 +112,11 @@ void draw() { //Called 60 (ish) times per second
     drawStage(); //Draw the arena to the canvas
 
     text("SimID   : "+SIM_ID
-        +"\nGame  : "+(currentGame+1)+"/"+GAME_SIZE+"\n"+"FPS: "+nf(frameRate, 3, 1) //Some debugging text
-        +"\nGEN   : "+numGens
-        +"\nMTR   : "+nf(MUTATION_RATE, 1, 3)
-        , height*0.02, height*0.02);
+      +"\nGame  : "+(currentGame+1)+"/"+GAME_SIZE
+      +"\nFPS: "+nf(frameRate, 3, 1)+" :|: Time: "+floor(millis()/1000)+" Seconds" //Some debugging text
+      +"\nGEN   : "+numGens
+      +"\nMTR   : "+nf(MUTATION_RATE, 1, 3)
+      , height*0.02, height*0.02);
     if (frameCount%GAME_TIME == 0) { //Calls breed every <GAME_TIME> frames
       breed();
     }
@@ -135,13 +137,16 @@ void draw() { //Called 60 (ish) times per second
   }
 }
 
-void saveData(){
+void saveData() {
+  /*
+  Saves the average fitness for each generation
+   */
   String data = str(numGens)+",";
   float avgRed = 0, avgGre = 0;
-  for(int i = 0; i < GAME_SIZE*2; i++){
-    if(fighters[i].red()){
+  for (int i = 0; i < GAME_SIZE*2; i++) {
+    if (fighters[i].red()) {
       avgRed+=fighters[i].fitness();
-    }else{
+    } else {
       avgGre+=fighters[i].fitness();
     }
   }
@@ -157,10 +162,10 @@ void breed() { //This functions breeds a new generation from the current generat
   ArrayList<Fighter> toBreedRED = new ArrayList<Fighter>();
   ArrayList<Fighter> toBreedGRE = new ArrayList<Fighter>();
   for (int i = 0; i < GAME_SIZE*2; i++) {
-    for (int j = 0; j < ceil(fighters[i].fitness())&&fighters[i].red(); ++j) {
+    for (int j = 0; j < ceil(fighters[i].fitness())&&(fighters[i].red() || random(1)<CROSSBREAD_CHANCE); ++j) {
       toBreedRED.add(fighters[i]);
     }
-    for (int j = 0; j < ceil(fighters[i].fitness())&&!fighters[i].red(); ++j) {
+    for (int j = 0; j < ceil(fighters[i].fitness())&&(fighters[i].red() || random(1)<CROSSBREAD_CHANCE); ++j) {
       toBreedGRE.add(fighters[i]);
     }
   }

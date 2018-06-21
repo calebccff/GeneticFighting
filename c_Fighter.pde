@@ -23,14 +23,16 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
   1 - Can see other fighter's bullet?
   3 - Distance from me to enemy
   4 - Perlin noise, this is used as a tick, to encourage some random thoughts and stop them getting stuck
+  5 - Relative direction of enemy
+  6 - Current velocity of enemy (distanceTravelledInLastFrame/1)
   */
   float dir = 0;//, oldDir = 0; //Direction, Processing works in radians so I call a lot of functions to switch cuz, I'm too lazy to learn how they work.
   float fov = 20f; //The Field of View, ie how wide their eyesight is.
   float speed = 0; /*The speed of the Fighter*/
   int shootCooldown = 0; /*Used to only allow a fighter to shoot after a cooldown period*/
 
-  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, framesTracked = 0, shotWhileFacing = 0; //Basic shoddy fitness function implementation
-  float shotsMissed = 0;
+  float shotsLanded = 0, hitsTaken = 0, shotsAvoided = 0, framesTracked = 0; //Basic shoddy fitness function implementation
+  float shotsMissed = 0, closeHits = 0, shotsFired = 0;
   boolean bulletInRange = false;
 
   int perlinNoise = 0;
@@ -86,32 +88,24 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Make a new vector from vel and fov.
     float withinFOV; /*Local temp var to calculate an input*/
     PVector tempVel = vel.copy();
-    if(vel.mag() < 2){
+    if(vel.mag() < 1){ //If the fighter is travelling too slowly then use it's direction instead of calculating it from velocity
       vel = new PVector(10, 0);
-      vel.rotate(radians(dir));
-    }if(int(leftEdge)==0){
-      PVector diff = PVector.sub(otherfighter.pos, pos);
-      withinFOV = degrees(PVector.angleBetween(vel, diff));
-    }else{
-      PVector diff = PVector.sub(pos, otherfighter.pos);
-      withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
+      vel.rotate(radians(dir)); //Reset velocity using direction
     }
+    PVector diff = PVector.sub(pos, otherfighter.pos); //
+    withinFOV = (int(leftEdge)==0?0:180)-degrees(PVector.angleBetween(vel, diff));
+    diff = null;
 
-    inputs[0] = withinFOV<fov/2?1:0;
-    framesTracked += inputs[0];
-    framesTracked *= map(fov, FOV_MIN, FOV_MAX, 1, 0);
+    inputs[0] = withinFOV<fov/82?1:0;
+    inputs[4] = map(withinFOV, 0, 180, 0, 1);
+    framesTracked += inputs[0]*map(fov, FOV_MIN, FOV_MAX, 1, 0);
 
     //Now the same for the bullets
     try{
-      if(int(leftEdge)==0){
-        PVector diff = PVector.sub(otherfighter.bullet.bulletPos, pos);
-        withinFOV = degrees(PVector.angleBetween(vel, diff));
-      }else{
-        PVector diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
-        withinFOV = 180-degrees(PVector.angleBetween(vel, diff));
-      }
+        diff = PVector.sub(pos, otherfighter.bullet.bulletPos);
+        withinFOV = (int(leftEdge)==0?0:180)-degrees(PVector.angleBetween(vel, diff));
     }catch(NullPointerException e){
-      inputs[1] = 0.0f;
+      inputs[1] = 0.0;
     }
 
     inputs[1] = withinFOV<fov/2?1:0;
@@ -123,6 +117,10 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
       inputs[3] = random(1);
     }
     vel = tempVel.copy();
+
+    //inputs[4] = map(otherfighter.vel.heading(), 0, TWO_PI, 0, 1); //Allows the fighter to know the direction and speed of the enemy
+    inputs[5] = map(otherfighter.vel.mag(), 0, 8, 0, 1); //Enemy's velocity
+
     float[] actions = brain.propForward(inputs); //Get the output of my BRAIN
     netOut = actions;
     float forward = actions[0]; //Should I move forward?
@@ -131,8 +129,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     float shoot = actions[3];
 
     //Update my fov
-    fov += map(actions[4], 0, 1, -5, 5);
-    fov = constrain(fov, FOV_MIN, FOV_MAX);
+    fov = map(actions[4], 0, 1, FOV_MIN, FOV_MAX);
 
     speed = map(forward, 0, 1, 0, 8); //Forward speed
     if(abs(speed) < 2){
@@ -158,7 +155,6 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     //Shooting
     if(shoot > 0.5 && shootCooldown == 0 && bullet == null){ //How hard do you have to pull the trigger (MAKE CONST)
       shoot();
-      shotWhileFacing += inputs[0]*map(fov, FOV_MIN, FOV_MAX, 1, 0);
     }
     if(bullet != null && !bullet.run()){
       bullet = null;
@@ -171,10 +167,12 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
     //Increment shotsAvoided
     if(otherfighter.bullet != null){
-      if(dist(pos.x, pos.y, otherfighter.bullet.bulletPos.x, otherfighter.bullet.bulletPos.y) < 60 && !bulletInRange){
+      float dist = dist(pos.x, pos.y, otherfighter.bullet.bulletPos.x, otherfighter.bullet.bulletPos.y);
+      if(dist < arena.width*0.1 && !bulletInRange){
         shotsAvoided++;
+        otherfighter.closeHits += map(dist, 0, arena.width*0.1, 1, 0);
         bulletInRange = true;
-      }else if(dist(pos.x, pos.y, otherfighter.bullet.bulletPos.x, otherfighter.bullet.bulletPos.y) > 59){
+      }else if(dist > (arena.width*0.1-1)){
         bulletInRange = false;
       }
     }
@@ -185,6 +183,7 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
 
   void shoot(){
     bullet = new Bullet(pos, dir, otherfighter);
+    shotsFired += map(fov, FOV_MIN, FOV_MAX, 1, 0);
   }
 
   void display(){ //Draw those curves!
@@ -228,7 +227,8 @@ class Fighter implements Comparable<Fighter>{ //The FIGHTER class!
     +constrain(shotsAvoided, 0, 50)*(float)fitnessWeights.get("ShotsAvoided")
     +shotsMissed*(float)fitnessWeights.get("ShotsMissed")
     +map(constrain(framesTracked, 0, 150), 0, 150, 0, 4)*(float)fitnessWeights.get("FramesTracked")
-    +shotWhileFacing*(float)fitnessWeights.get("ShotWhileFacing");
+    +closeHits*(float)fitnessWeights.get("CloseHits")
+    +shotsFired*(float)fitnessWeights.get("ShotsFired");
 
     return myFitness;
   }

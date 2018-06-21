@@ -20,13 +20,13 @@ class Game{
     debugText += "Shots land : "+f.shotsLanded+"\n";
     debugText += "Shots avoid: "+f.shotsAvoided+"\n";
     debugText += "Shots Miss : "+f.shotsMissed+"\n";
-    debugText += "Frames Trac: "+f.framesTracked+"\n";
-    debugText += "Shots Face : "+f.shotWhileFacing+"\n";
+    debugText += "Shots Fired: "+f.shotsFired+"\n";
+    debugText += "Close Hits : "+f.closeHits+"\n";
     debugText += "FOV   : "+f.fov+"\n";
     debugText += "Input : \n";
-    debugText += "SO  , SOB , DIST, NOISE\n";
+    debugText += "SEE ,  SEB ,  DIST,  NOIS, RELDIR, VELE\n";
     for(int i = 0; i < f.inputs.length; i++){
-      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":", ");
+      debugText += nf(f.inputs[i], 1, 2)+(i==f.inputs.length-1?"":",  ");
     }
     debugText += "\n\n";
     debugText += "Output: \n";

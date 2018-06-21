@@ -10,21 +10,21 @@ class Brain {
     nodesVisible[0] = new Node[lenInput]; //Initialises the second dimension of the array
     nodesVisible[1] = new Node[lenOutput];
 
-    for(int i = 0; i < nodesVisible[0].length; i++){
+    for (int i = 0; i < nodesVisible[0].length; i++) {
       nodesVisible[0][i] = new Node(0);
     }
 
     nodesHidden = new Node[lenHidden.length][];
-    for(int i = 0; i < nodesHidden.length; i++){
+    for (int i = 0; i < nodesHidden.length; i++) {
       nodesHidden[i] = new Node[lenHidden[i]];
     }
 
-    for(int i = 0; i < nodesHidden[0].length; i++){
+    for (int i = 0; i < nodesHidden[0].length; i++) {
       nodesHidden[0][i] = new Node(nodesVisible[0].length);
     }
 
-    for(int i = 1; i < lenHidden.length; i++){
-      for(int j = 0; j < lenHidden[i]; j++){
+    for (int i = 1; i < lenHidden.length; i++) {
+      for (int j = 0; j < lenHidden[i]; j++) {
         nodesHidden[i][j] = new Node(nodesHidden[i-1].length);
       }
     }
@@ -34,21 +34,21 @@ class Brain {
     }
   }
 
-  Brain(Brain b){ //This is used for evolution, basically creates a new BRAIN from one parent
+  Brain(Brain b) { //This is used for evolution, basically creates a new BRAIN from one parent
     nodesVisible[0] = new Node[b.nodesVisible[0].length]; //Set the size of the staggered array, kinda crusty code MIGHTFIX
     nodesVisible[1] = new Node[b.nodesVisible[1].length];
     nodesHidden = new Node[b.nodesHidden.length][];
-    for(int i = 0; i < nodesHidden.length; i++){
+    for (int i = 0; i < nodesHidden.length; i++) {
       nodesHidden[i] = new Node[b.nodesHidden[i].length];
     }
 
-    for(int i = 0; i < nodesVisible.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
-      for(int j = 0; j < nodesVisible[i].length; j++){
+    for (int i = 0; i < nodesVisible.length; i++) { //This is where the evolution comes in, no dominant/recessive genes although that could be added
+      for (int j = 0; j < nodesVisible[i].length; j++) {
         nodesVisible[i][j] = new Node(b.nodesVisible[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
-    for(int i = 0; i < nodesHidden.length; i++){ //This is where the evolution comes in, no dominant/recessive genes although that could be added
-      for(int j = 0; j < nodesHidden[i].length; j++){
+    for (int i = 0; i < nodesHidden.length; i++) { //This is where the evolution comes in, no dominant/recessive genes although that could be added
+      for (int j = 0; j < nodesHidden[i].length; j++) {
         nodesHidden[i][j] = new Node(b.nodesHidden[i][j]); //Picks a random parent and uses their genes.
       }                                                                      //Obviously this isn't great for a NN, MIGHTFIX
     }
@@ -63,12 +63,12 @@ class Brain {
     for (int i = 0; i < nodesHidden[0].length; ++i) { //Set the next layer
       nodesHidden[0][i].propForward(nodesVisible[0]);
     }
-    for(int j = 1; j < nodesHidden.length; ++j){
-      for(int i = 0; i < nodesHidden[j].length; ++i){
+    for (int j = 1; j < nodesHidden.length; ++j) {
+      for (int i = 0; i < nodesHidden[j].length; ++i) {
         nodesHidden[j][i].propForward(nodesHidden[j-1]);
       }
     }
-    for(int i = 0; i < nodesVisible[1].length; ++i){
+    for (int i = 0; i < nodesVisible[1].length; ++i) {
       nodesVisible[1][i].propForward(nodesHidden[nodesHidden.length-1]);
     }
 
@@ -80,7 +80,10 @@ class Brain {
     }
 
     return output; //Return them
+  }
 
+  float sig(float x) { //The sigmoid function, look it up.
+    return 1/(1+exp(-x)); //looks like and S shape, Eulers number is AWESOME!
   }
 
   class Node { //Node class, could use a dictionary or somethin similar but this creates more logical code (and more efficient!)
@@ -94,14 +97,14 @@ class Brain {
       }
     }
 
-    Node(Node parent){ //Takes a random parent Node (see above)
+    Node(Node parent) { //Takes a random parent Node (see above)
       synapse = new float[parent.synapse.length];
-      for(int i = 0; i < synapse.length; ++i){ //For each synapse
-      if(random(1) < MUTATION_RATE){
-        synapse[i] = parent.getSynapse(i)*random(1-MUTATION_AMT, 1+MUTATION_AMT);
-      }else{
-        synapse[i] = parent.getSynapse(i);
-      }
+      for (int i = 0; i < synapse.length; ++i) { //For each synapse
+        if (random(1) < MUTATION_RATE) {
+          synapse[i] = parent.getSynapse(i)*random(1-MUTATION_AMT, 1+MUTATION_AMT);
+        } else {
+          synapse[i] = parent.getSynapse(i);
+        }
       }
     }
 
@@ -113,15 +116,14 @@ class Brain {
       //value = sig(value); ///MIGHT NEED TO BE ADJUSTED // Activation function, used to keep the values nice and small.
     }
 
-    float getValue(){
+    float getValue() {
       return value;
     }
-    void setValue(float val){
+    void setValue(float val) {
       this.value = val;
     }
-    float getSynapse(int index){
+    float getSynapse(int index) {
       return synapse[index];
     }
-
   }
 }
